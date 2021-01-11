@@ -1,0 +1,32 @@
+version: '3'
+
+networks:
+  default:
+    driver: bridge
+
+services:
+  redis:
+    image: redis:alpine
+    hostname: redis
+    container_name: redis
+    restart: on-failure
+    ports:
+      - '6379:6379'
+    networks:
+      - default
+  authx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cybersamx/authx
+    hostname: authx
+    container_name: authx
+    ports:
+      - 8080:8080
+    depends_on:
+      - redis
+    environment:
+      - CS_PORT=8080
+      - CS_REDIS_ADDR=redis:6379
+    networks:
+      - default
