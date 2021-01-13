@@ -1,4 +1,4 @@
-package redisdb
+package redis
 
 import (
 	"bytes"
@@ -16,13 +16,10 @@ import (
 
 const (
 	userPrefix         = "users"
-	pwdHashLen         = 64
-	pwdHashIteration   = 8
 	pwdSaltLen         = 24
 	accessTokenPrefix  = "access_tokens"
 	refreshTokenPrefix = "refresh_tokens"
 	redisTimeout       = 15 * time.Second
-	alphanum           = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
 )
 
 var seedUsers = []struct {
@@ -72,8 +69,8 @@ func (sr *StorageRedis) Close() {
 }
 
 func (sr *StorageRedis) saveToken(key string, expireIn time.Duration, buffer *bytes.Buffer) error {
-	ctx, closeFn := context.WithTimeout(context.Background(), redisTimeout)
-	defer closeFn()
+	ctx, cancel := context.WithTimeout(context.Background(), redisTimeout)
+	defer cancel()
 
 	if err := sr.client.Set(ctx, key, buffer.Bytes(), expireIn).Err(); err != nil {
 		return err
@@ -83,7 +80,6 @@ func (sr *StorageRedis) saveToken(key string, expireIn time.Duration, buffer *by
 }
 
 func (sr *StorageRedis) SaveAccessToken(at *models.AccessToken) error {
-	// Access token
 	key := fmt.Sprintf("%s:%s", accessTokenPrefix, at.ID)
 	expireIn := time.Until(at.ExpireAt)
 	buffer, err := gobEncodedBytes(at)
@@ -114,8 +110,8 @@ func (sr *StorageRedis) SaveRefreshToken(rt *models.RefreshToken) error {
 }
 
 func (sr *StorageRedis) getUser(key string) (*models.User, error) {
-	ctx, closeFn := context.WithTimeout(context.Background(), redisTimeout)
-	defer closeFn()
+	ctx, cancel := context.WithTimeout(context.Background(), redisTimeout)
+	defer cancel()
 
 	buf, err := sr.client.Get(ctx, key).Bytes()
 	if err == redis.Nil {
@@ -134,16 +130,16 @@ func (sr *StorageRedis) getUser(key string) (*models.User, error) {
 }
 
 func (sr *StorageRedis) SeedUserData() error {
-	ctx, closeFn := context.WithTimeout(context.Background(), redisTimeout)
-	defer closeFn()
+	ctx, cancel := context.WithTimeout(context.Background(), redisTimeout)
+	defer cancel()
 
 	for _, seedUser := range seedUsers {
 		// Generate a user.
-		salt, err := getRandString(pwdSaltLen)
+		salt, err := storage.GetRandString(pwdSaltLen)
 		if err != nil {
 			panic(err)
 		}
-		password := hashString(seedUser.clearPwd, salt)
+		password := storage.HashString(seedUser.clearPwd, salt)
 		user := models.User{
 			ID:       seedUser.id,
 			Username: seedUser.username,

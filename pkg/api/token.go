@@ -16,10 +16,8 @@ import (
 )
 
 const (
-	accessTokenExpireIn  = 30 * time.Minute
-	refreshTokenExpireIn = 24 * 3 * time.Hour
-	pwdHashLen           = 64
-	pwdHashIteration     = 8
+	pwdHashLen       = 64
+	pwdHashIteration = 8
 )
 
 func hashString(str, salt string) string {
@@ -33,8 +31,7 @@ func hashString(str, salt string) string {
 
 func createTokens(uid string, cfg *config.Config) (*models.AccessToken, *models.RefreshToken, error) {
 	// Access token
-
-	expireAt := time.Now().Add(accessTokenExpireIn)
+	expireAt := time.Now().Add(time.Duration(cfg.AccessTTL) * time.Second)
 	atID := uuid.New().String()
 	atClaims := jwt.MapClaims{}
 	atClaims["authorized"] = true
@@ -55,8 +52,7 @@ func createTokens(uid string, cfg *config.Config) (*models.AccessToken, *models.
 	}
 
 	// Refresh token
-
-	expireAt = time.Now().Add(refreshTokenExpireIn)
+	expireAt = time.Now().Add(time.Duration(cfg.RefreshTTL) * time.Second)
 	rtID := uuid.New().String()
 	rtClaims := jwt.MapClaims{}
 	rtClaims["authorized"] = true

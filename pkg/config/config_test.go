@@ -115,13 +115,13 @@ func TestLoadFromEnvVariables(t *testing.T) {
 	cfg := New()
 	v := viper.GetViper()
 
-	Setenv(t, "CS_PORT", "6000")
-	Setenv(t, "CS_DEBUG", "true")
-	Setenv(t, "CS_REDIS_ADDR", "10.20.30.40")
+	Setenv(t, "AX_PORT", "6000")
+	Setenv(t, "AX_DEBUG", "true")
+	Setenv(t, "AX_REDIS_ADDR", "10.20.30.40")
 	defer func() {
-		Unsetenv(t, "CS_PORT")
-		Unsetenv(t, "CS_DEBUG")
-		Unsetenv(t, "CS_REDIS_ADDR")
+		Unsetenv(t, "AX_PORT")
+		Unsetenv(t, "AX_DEBUG")
+		Unsetenv(t, "AX_REDIS_ADDR")
 	}()
 
 	opts := BindConfigOpts{
@@ -169,9 +169,9 @@ func TestOverrides(t *testing.T) {
 		require.NoError(t, os.Remove("config.yaml"))
 	}()
 
-	Setenv(t, "CS_DEBUG", "false")
+	Setenv(t, "AX_DEBUG", "false")
 	defer func() {
-		Unsetenv(t, "CS_DEBUG")
+		Unsetenv(t, "AX_DEBUG")
 	}()
 
 	opts := BindConfigOpts{

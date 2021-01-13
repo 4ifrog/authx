@@ -14,6 +14,22 @@ services:
       - '6379:6379'
     networks:
       - default
+  mongo:
+    image: mongo:4.4.3-bionic
+    hostname: mongo
+    container_name: mongo
+    restart: on-failure
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root      # Admin usermame
+      MONGO_INITDB_ROOT_PASSWORD: password  # Admin password
+      MONGO_INITDB_DATABASE: authx          # Database to create
+    volumes:
+      - ./db-scripts/create-user.js:/docker-entrypoint-initdb.d/create-user.js
+      - ./db-scripts/setup-ttl.js:/docker-entrypoint-initdb.d/setup-ttl.js
+    networks:
+      - default
   authx:
     build:
       context: .
