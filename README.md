@@ -1,6 +1,6 @@
 # Authx
 
-An implementation of an auth service written in Go.
+An implementation of auth service in Go.
 
 ## Setup
 

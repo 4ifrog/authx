@@ -1,19 +1,10 @@
-version: '3'
+version: '3.7'
 
 networks:
   default:
     driver: bridge
 
 services:
-  redis:
-    image: redis:alpine
-    hostname: redis
-    container_name: redis
-    restart: on-failure
-    ports:
-      - '6379:6379'
-    networks:
-      - default
   mongo:
     image: mongo:4.4.3-bionic
     hostname: mongo
@@ -32,7 +23,7 @@ services:
       - default
   authx:
     build:
-      context: .
+      context: ..
       dockerfile: Dockerfile
     image: cybersamx/authx
     hostname: authx
@@ -40,9 +31,9 @@ services:
     ports:
       - 8080:8080
     depends_on:
-      - redis
+      - mongo
     environment:
-      - CS_PORT=8080
-      - CS_REDIS_ADDR=redis:6379
+      - AX_PORT=8080
+      - AX_MONGO_ADDR=mongodb://nobody:secrets@mongo:27017/authx
     networks:
       - default

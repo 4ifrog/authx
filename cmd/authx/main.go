@@ -18,13 +18,6 @@ func main() {
 	cfg.BindConfig(v)
 	cfg.LoadConfig(v)
 
-	// Redis
-	//store := redisdb.New(cfg)
-	//defer store.Close()
-	//if err := store.SeedUserData(); err != nil {
-	//	panic(err)
-	//}
-
 	// Mongo
 	mStore := mongo.New(cfg)
 	defer mStore.Close()
