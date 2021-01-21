@@ -56,7 +56,7 @@ format:
 
 test:
 	@echo "Testing $(APP_NAME)..."
-	go test $(TEST_SRC) -v
+	go test $(TEST_SRC) -v -count=1
 
 ##@ clean: Clean output files and build cache
 
@@ -66,8 +66,8 @@ clean:
 	@-$(MAKE) go-clean
 
 go-clean:
-	@echo "Cleaning build cache..."
-	go clean
+	@echo "Cleaning build and test cache..."
+	go clean -testcache
 
 ##@ help: Help
 

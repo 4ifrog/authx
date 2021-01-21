@@ -116,13 +116,13 @@ func (sm *StorageMongo) SaveRefreshToken(rt *models.RefreshToken) error {
 	return nil
 }
 
-func (sm *StorageMongo) getUser(key string, val string) (*models.User, error) {
+func (sm *StorageMongo) getUser(key, val string) (*models.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), atomicTimeout)
 	defer cancel()
 
 	var user models.User
 	err := sm.db.Collection(userCollection).FindOne(ctx, bson.D{
-		{key, val},
+		{Key: key, Value: val},
 	}).Decode(&user)
 	if err != nil {
 		return nil, err

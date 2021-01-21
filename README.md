@@ -4,6 +4,14 @@ An implementation of auth service in Go.
 
 ## Setup
 
+### Git Hook
+
+Add git hook to run a test and lint on every commit.
+
+```bash
+$ git config core.hooksPath .githooks
+```
+
 ### Database
 
 The auth service depends on Redis or Mongo for persistence.

@@ -35,16 +35,6 @@ func containsChildKey(m primitive.M, key string) bool {
 	return false
 }
 
-func containsString(texts []string, val string) bool {
-	for _, text := range texts {
-		if text == val {
-			return true
-		}
-	}
-
-	return false
-}
-
 // indexExists checks to see if index for `field` in `collection` already exist.
 func indexExists(parentCtx context.Context, collection *mongo.Collection, field string, opts ...*IndexOptions) (bool, error) {
 	var isTTL bool
@@ -107,7 +97,7 @@ func createIndex(parentCtx context.Context, collection *mongo.Collection, field 
 	// Create TTL index
 	model := mongo.IndexModel{
 		Keys: bson.D{
-			{field, 1},
+			{Key: field, Value: 1},
 		},
 	}
 
@@ -123,22 +113,4 @@ func createIndex(parentCtx context.Context, collection *mongo.Collection, field 
 	indexName, err := collection.Indexes().CreateOne(ctx, model, ciOpts)
 
 	return indexName, err
-}
-
-// listCollections returns all collections in dataabase `db`.
-func listCollectionNames(parentCtx context.Context, db *mongo.Database) ([]string, error) {
-	ctx, cancel := context.WithTimeout(parentCtx, atomicTimeout)
-	defer cancel()
-
-	return db.ListCollectionNames(ctx, bson.D{})
-}
-
-// collectionExists return true if collection named `collName` exist in database `db`.
-func collectionExists(parentCtx context.Context, db *mongo.Database, collName string) (bool, error) {
-	collNames, err := listCollectionNames(parentCtx, db)
-	if err != nil {
-		return false, err
-	}
-
-	return containsString(collNames, collName), nil
 }

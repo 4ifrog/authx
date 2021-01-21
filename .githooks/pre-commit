@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+# --- Initialization ---
+
+bold=$(tput bold)
+reset=$(tput sgr0)
+blue=$(tput setaf 4)
+red=$(tput setaf 1)
+green=$(tput setaf 2)
+
+ROOT_DIR=$(git rev-parse --show-toplevel)
+echo "Project directory: ${ROOT_DIR}"
+
+# --- Functions ---
+
+function color_print() {
+    color="${1}"
+    msg="${2}"
+
+    if [ "${color}" == 'blue' ]; then
+      echo "${bold}${blue}${msg}${reset}"
+    elif [ "${color}" == 'green' ]; then
+      echo "${bold}${green}${msg}${reset}"
+    elif [ "${color}" == 'red' ]; then
+      echo "${bold}${red}${msg}${reset}"
+    else
+      echo "${bold}${msg}${reset}"
+    fi
+}
+
+# --- Run make scripts ---
+
+cd "${ROOT_DIR}"
+
+declare -a commands=('make format' 'make lint' 'make test')
+declare -a messages=('Format Go files...' 'Lint Go files...' 'Run unit tests...')
+
+let i=0
+for cmd in "${commands[@]}"; do
+  echo
+  color_print 'blue' "${messages[${i}]}"
+  eval "${cmd}"
+  if [ "${?}" == 0 ]; then
+    color_print 'green' 'PASSED'
+  else
+    color_print 'red' 'FAILED'
+    exit 1
+  fi
+
+  let i=i+1
+done

@@ -8,7 +8,6 @@ import (
 	"github.com/cybersamx/authx/pkg/config"
 	"github.com/cybersamx/authx/pkg/server"
 	"github.com/cybersamx/authx/pkg/storage/mongo"
-	//"github.com/cybersamx/authx/pkg/storage/redisdb"
 )
 
 func main() {

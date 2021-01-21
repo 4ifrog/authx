@@ -9,15 +9,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-
-
 type BindConfigOpts struct {
 	FlagSet *pflag.FlagSet
 	Args    []string
 }
 
 const (
-	envConfigPrefix   = "AX"
+	envConfigPrefix = "AX"
 )
 
 // Config load order: is: default values > config file > environment variables > CLI arguments

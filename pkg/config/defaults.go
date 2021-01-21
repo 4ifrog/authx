@@ -23,6 +23,6 @@ func setDefaults(flagset *pflag.FlagSet) {
 	flagset.String("mongo-addr", "mongodb://nobody:secrets@localhost:27017/authx", "The address of Mongo to where the app connects")
 	flagset.String("access-secret", "", "Secret for signing an access token")
 	flagset.String("refresh-secret", "", "Secret for signing a refresh token")
-	flagset.Int32("access-ttl", 24 * 60 * 60, "Access token TTL in seconds")
-	flagset.Int32("refresh-ttl", 30 * 24 * 60 * 60, "Refresh token TTL in seconds")
+	flagset.Int32("access-ttl", 86400, "Access token TTL in seconds")
+	flagset.Int32("refresh-ttl", 604800, "Refresh token TTL in seconds")
 }
