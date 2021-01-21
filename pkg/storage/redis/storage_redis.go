@@ -10,6 +10,7 @@ import (
 	"github.com/go-redis/redis/v8"
 
 	"github.com/cybersamx/authx/pkg/config"
+	"github.com/cybersamx/authx/pkg/crypto"
 	"github.com/cybersamx/authx/pkg/models"
 	"github.com/cybersamx/authx/pkg/storage"
 )
@@ -68,8 +69,8 @@ func (sr *StorageRedis) Close() {
 	}
 }
 
-func (sr *StorageRedis) saveToken(key string, expireIn time.Duration, buffer *bytes.Buffer) error {
-	ctx, cancel := context.WithTimeout(context.Background(), redisTimeout)
+func (sr *StorageRedis) saveToken(parent context.Context, key string, expireIn time.Duration, buffer *bytes.Buffer) error {
+	ctx, cancel := context.WithTimeout(parent, redisTimeout)
 	defer cancel()
 
 	if err := sr.client.Set(ctx, key, buffer.Bytes(), expireIn).Err(); err != nil {
@@ -79,14 +80,14 @@ func (sr *StorageRedis) saveToken(key string, expireIn time.Duration, buffer *by
 	return nil
 }
 
-func (sr *StorageRedis) SaveAccessToken(at *models.AccessToken) error {
+func (sr *StorageRedis) SaveAccessToken(parent context.Context, at *models.AccessToken) error {
 	key := fmt.Sprintf("%s:%s", accessTokenPrefix, at.ID)
 	expireIn := time.Until(at.ExpireAt)
 	buffer, err := gobEncodedBytes(at)
 	if err != nil {
 		return err
 	}
-	err = sr.saveToken(key, expireIn, buffer)
+	err = sr.saveToken(parent, key, expireIn, buffer)
 	if err != nil {
 		return err
 	}
@@ -94,7 +95,7 @@ func (sr *StorageRedis) SaveAccessToken(at *models.AccessToken) error {
 	return nil
 }
 
-func (sr *StorageRedis) SaveRefreshToken(rt *models.RefreshToken) error {
+func (sr *StorageRedis) SaveRefreshToken(parent context.Context, rt *models.RefreshToken) error {
 	// Refresh token
 	key := fmt.Sprintf("%s:%s", refreshTokenPrefix, rt.ID)
 	expireIn := time.Until(rt.ExpireAt)
@@ -102,15 +103,15 @@ func (sr *StorageRedis) SaveRefreshToken(rt *models.RefreshToken) error {
 	if err != nil {
 		return err
 	}
-	if err := sr.saveToken(key, expireIn, buffer); err != nil {
+	if err := sr.saveToken(parent, key, expireIn, buffer); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (sr *StorageRedis) getUser(key string) (*models.User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), redisTimeout)
+func (sr *StorageRedis) getUser(parent context.Context, key string) (*models.User, error) {
+	ctx, cancel := context.WithTimeout(parent, redisTimeout)
 	defer cancel()
 
 	buf, err := sr.client.Get(ctx, key).Bytes()
@@ -135,11 +136,11 @@ func (sr *StorageRedis) SeedUserData() error {
 
 	for _, seedUser := range seedUsers {
 		// Generate a user.
-		salt, err := storage.GetRandString(pwdSaltLen)
+		salt, err := crypto.GetRandString(pwdSaltLen)
 		if err != nil {
 			panic(err)
 		}
-		password := storage.HashString(seedUser.clearPwd, salt)
+		password := crypto.HashString(seedUser.clearPwd, salt)
 		user := models.User{
 			ID:       seedUser.id,
 			Username: seedUser.username,
@@ -168,10 +169,10 @@ func (sr *StorageRedis) SeedUserData() error {
 	return nil
 }
 
-func (sr *StorageRedis) GetUser(id string) (*models.User, error) {
-	return sr.getUser(keyForID(id))
+func (sr *StorageRedis) GetUser(parent context.Context, id string) (*models.User, error) {
+	return sr.getUser(parent, keyForID(id))
 }
 
-func (sr *StorageRedis) GetUserByUsername(username string) (*models.User, error) {
-	return sr.getUser(keyForUsername(username))
+func (sr *StorageRedis) GetUserByUsername(parent context.Context, username string) (*models.User, error) {
+	return sr.getUser(parent, keyForUsername(username))
 }

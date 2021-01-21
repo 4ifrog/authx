@@ -2,24 +2,33 @@ package mongo
 
 import (
 	"context"
+	"log"
 	"time"
 
+	"github.com/flowchartsman/retry"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.mongodb.org/mongo-driver/x/mongo/driver/topology"
 
 	"github.com/cybersamx/authx/pkg/config"
+	"github.com/cybersamx/authx/pkg/crypto"
 	"github.com/cybersamx/authx/pkg/models"
-	"github.com/cybersamx/authx/pkg/storage"
 )
 
 const (
-	atomicTimeout  = 30 * time.Second
+	atomicTimeout  = 15 * time.Second
 	pwdSaltLen     = 24
 	atCollection   = "access_tokens"
 	rtCollection   = "refresh_tokens"
 	userCollection = "users"
 	database       = "authx"
+
+	// Retry
+	retries      = 5
+	initialDelay = 1 * time.Second
+	maxDelay     = 6 * time.Second
 )
 
 var seedUsers = []struct {
@@ -33,6 +42,7 @@ var seedUsers = []struct {
 	{"3", "patel", "patel_rules"},
 }
 
+// setupMongo configure the mongo datastore with indexes, collections, etc.
 func setupMongo(parentCtx context.Context, db *mongo.Database) error {
 	ctx, cancel := context.WithTimeout(parentCtx, atomicTimeout)
 	defer cancel()
@@ -56,22 +66,82 @@ type StorageMongo struct {
 	db     *mongo.Database
 }
 
+func newClient(parent context.Context, uri string, retries int, initialDelay, maxDelay time.Duration) (*mongo.Client, error) {
+	var client *mongo.Client
+	timeout := maxDelay
+
+	retrier := retry.NewRetrier(retries, initialDelay, maxDelay)
+	err := retrier.RunContext(parent, func(ctx context.Context) (retErr error) {
+		var cterr error
+		client, cterr = mongo.NewClient(options.Client().ApplyURI(uri))
+		if cterr != nil {
+			log.Fatal("can't create an instance of mongo client")
+		}
+
+		// Disconnect only if we can't connect or ping the datastore.
+		//
+		// client.Disconnect() returns an error, which should be checked. We wrap the function call
+		// in an anonymous function so that we can capture the error.
+		closeFn := func() {
+			log.Printf("disconnect from mongo")
+			dctx, dcancel := context.WithTimeout(ctx, timeout)
+			defer dcancel()
+			if derr := client.Disconnect(dctx); derr != nil && derr != mongo.ErrClientDisconnected {
+				log.Printf("can't close connection to mongo: %v\n", derr)
+				retErr = derr
+			}
+		}
+
+		// Connect the datastore.
+		log.Printf("attempting to connect mongo %s\n", uri)
+		cctx, ccancel := context.WithTimeout(ctx, timeout)
+		defer ccancel()
+		if cerr := client.Connect(cctx); cerr != nil {
+			defer closeFn()
+
+			if cerr == topology.ErrTopologyConnected {
+				// Already connected, so continue to ping the datastore.
+			} else {
+				log.Printf("can't connect mongo: %v\n", cerr)
+				retErr = cerr
+				return // Return the err to retrier telling it to retry.
+			}
+		}
+
+		// Ping the datastore.
+		log.Printf("attempting to ping mongo %s\n", uri)
+		pctx, pcancel := context.WithTimeout(ctx, timeout)
+		defer pcancel()
+		if perr := client.Ping(pctx, readpref.Primary()); perr != nil {
+			defer closeFn()
+			log.Printf("can't ping mongo: %v\n", perr)
+			retErr = perr
+			return // Return the err to retrier telling it to retry.
+		}
+
+		retErr = nil
+		return
+	})
+
+	return client, err
+}
+
 func New(cfg *config.Config) *StorageMongo {
 	uri := cfg.MongoAddr
 
-	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	client, err := newClient(ctx, uri, retries, initialDelay, maxDelay)
+
 	if err != nil {
+		log.Printf("exhausted all %d retries", retries)
 		panic(err)
 	}
 
-	ctx := context.Background()
-	if err := client.Connect(ctx); err != nil {
-		panic(err)
-	}
+	log.Println("connected to mongo successfully")
 
+	// Additional setup.
 	db := client.Database(database)
-
-	// Additional setup on the collections.
 	if err := setupMongo(ctx, db); err != nil {
 		panic(err)
 	}
@@ -92,8 +162,8 @@ func (sm *StorageMongo) Close() {
 	}
 }
 
-func (sm *StorageMongo) SaveAccessToken(at *models.AccessToken) error {
-	ctx, cancel := context.WithTimeout(context.Background(), atomicTimeout)
+func (sm *StorageMongo) SaveAccessToken(parent context.Context, at *models.AccessToken) error {
+	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
 	defer cancel()
 
 	_, err := sm.db.Collection(atCollection).InsertOne(ctx, at)
@@ -104,8 +174,8 @@ func (sm *StorageMongo) SaveAccessToken(at *models.AccessToken) error {
 	return nil
 }
 
-func (sm *StorageMongo) SaveRefreshToken(rt *models.RefreshToken) error {
-	ctx, cancel := context.WithTimeout(context.Background(), atomicTimeout)
+func (sm *StorageMongo) SaveRefreshToken(parent context.Context, rt *models.RefreshToken) error {
+	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
 	defer cancel()
 
 	_, err := sm.db.Collection(rtCollection).InsertOne(ctx, rt)
@@ -116,8 +186,8 @@ func (sm *StorageMongo) SaveRefreshToken(rt *models.RefreshToken) error {
 	return nil
 }
 
-func (sm *StorageMongo) getUser(key, val string) (*models.User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), atomicTimeout)
+func (sm *StorageMongo) getUser(parent context.Context, key, val string) (*models.User, error) {
+	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
 	defer cancel()
 
 	var user models.User
@@ -135,13 +205,17 @@ func (sm *StorageMongo) SeedUserData() error {
 	ctx, cancel := context.WithTimeout(context.Background(), atomicTimeout)
 	defer cancel()
 
+	if err := sm.db.Collection(userCollection).Drop(ctx); err != nil {
+		panic(err)
+	}
+
 	for _, seedUser := range seedUsers {
 		// Generate a user.
-		salt, err := storage.GetRandString(pwdSaltLen)
+		salt, err := crypto.GetRandString(pwdSaltLen)
 		if err != nil {
 			panic(err)
 		}
-		password := storage.HashString(seedUser.clearPwd, salt)
+		password := crypto.HashString(seedUser.clearPwd, salt)
 		user := models.User{
 			ID:       seedUser.id,
 			Username: seedUser.username,
@@ -158,10 +232,10 @@ func (sm *StorageMongo) SeedUserData() error {
 	return nil
 }
 
-func (sm *StorageMongo) GetUser(id string) (*models.User, error) {
-	return sm.getUser("_id", id)
+func (sm *StorageMongo) GetUser(parent context.Context, id string) (*models.User, error) {
+	return sm.getUser(parent, "_id", id)
 }
 
-func (sm *StorageMongo) GetUserByUsername(username string) (*models.User, error) {
-	return sm.getUser("username", username)
+func (sm *StorageMongo) GetUserByUsername(parent context.Context, username string) (*models.User, error) {
+	return sm.getUser(parent, "username", username)
 }

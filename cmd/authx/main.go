@@ -18,15 +18,15 @@ func main() {
 	cfg.LoadConfig(v)
 
 	// Mongo
-	mStore := mongo.New(cfg)
-	defer mStore.Close()
-	if err := mStore.SeedUserData(); err != nil {
+	store := mongo.New(cfg)
+	defer store.Close()
+	if err := store.SeedUserData(); err != nil {
 		panic(err)
 	}
 
 	// HTTP server
 	srv := server.New(cfg)
-	srv.BindAPIRoutes(api.GetRoutesFunc(), mStore)
+	srv.BindAPIRoutes(api.GetRoutesFunc(), store)
 
 	// Put everything in an app and run it.
 	a := app.New(srv, cfg)

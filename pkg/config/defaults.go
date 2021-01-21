@@ -6,14 +6,15 @@ import (
 
 // Mapstructure maps the fields to the program parameter names.
 type Config struct {
-	Port          int
-	Debug         bool
-	RedisAddr     string `mapstructure:"redis-addr"`
-	MongoAddr     string `mapstructure:"mongo-addr"`
-	AccessSecret  string `mapstructure:"access-secret"`
-	RefreshSecret string `mapstructure:"refresh-secret"`
-	AccessTTL     int    `mapstructure:"access-ttl"`
-	RefreshTTL    int    `mapstructure:"refresh-ttl"`
+	Port               int
+	Debug              bool
+	RedisAddr          string `mapstructure:"redis-addr"`
+	MongoAddr          string `mapstructure:"mongo-addr"`
+	AccessSecret       string `mapstructure:"access-secret"`
+	RefreshSecret      string `mapstructure:"refresh-secret"`
+	AccessTTL          int    `mapstructure:"access-ttl"`
+	RefreshTTL         int    `mapstructure:"refresh-ttl"`
+	RefreshTokenRotate bool   `mapstructure:"refresh-token-rotate"`
 }
 
 func setDefaults(flagset *pflag.FlagSet) {
@@ -25,4 +26,5 @@ func setDefaults(flagset *pflag.FlagSet) {
 	flagset.String("refresh-secret", "", "Secret for signing a refresh token")
 	flagset.Int32("access-ttl", 86400, "Access token TTL in seconds")
 	flagset.Int32("refresh-ttl", 604800, "Refresh token TTL in seconds")
+	flagset.Bool("refresh-token-rotate", false, "Issue a new refresh token when renewing an access token")
 }

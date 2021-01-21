@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/cybersamx/codefresh v0.0.0-20201028054126-d7024bdee953
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/flowchartsman/retry v1.2.0
 	github.com/gavv/httpexpect/v2 v2.1.0
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-redis/redis/v8 v8.4.8

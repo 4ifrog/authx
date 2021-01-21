@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 
 	"github.com/cybersamx/authx/pkg/models"
@@ -15,11 +16,11 @@ type Storage interface {
 	Close()
 
 	// Token
-	SaveAccessToken(at *models.AccessToken) error
-	SaveRefreshToken(rt *models.RefreshToken) error
+	SaveAccessToken(parent context.Context, at *models.AccessToken) error
+	SaveRefreshToken(parent context.Context, rt *models.RefreshToken) error
 
 	// User
-	GetUser(id string) (*models.User, error)
-	GetUserByUsername(username string) (*models.User, error)
+	GetUser(parent context.Context, id string) (*models.User, error)
+	GetUserByUsername(parent context.Context, username string) (*models.User, error)
 	SeedUserData() error
 }

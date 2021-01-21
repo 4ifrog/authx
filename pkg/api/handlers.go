@@ -77,7 +77,7 @@ func SignInHandler(cfg *config.Config, store storage.Storage) gin.HandlerFunc {
 			return
 		}
 
-		user, err := store.GetUserByUsername(login.Username)
+		user, err := store.GetUserByUsername(ctx, login.Username)
 		if err == storage.ErrorNotFound {
 			ctx.JSONP(http.StatusUnauthorized, "Invalid authentication credentials")
 			return
@@ -96,13 +96,13 @@ func SignInHandler(cfg *config.Config, store storage.Storage) gin.HandlerFunc {
 			return
 		}
 
-		at, rt, err := createTokens(user.ID, cfg)
+		at, rt, err := createOAuthToken(user.ID, cfg)
 		if err != nil {
 			ctx.JSONP(http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		if err := saveAccessRefreshTokens(store, at, rt); err != nil {
+		if err := saveOAuthToken(ctx, store, at, rt); err != nil {
 			ctx.JSONP(http.StatusInternalServerError, err.Error())
 			return
 		}

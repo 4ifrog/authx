@@ -6,3 +6,4 @@ access-secret: FJE484rf8234se097  # Don't do this in production
 refresh-secret: XDFER3723d_328fpe # Don't do this in production
 access-ttl: 3600      # 1 day in seconds
 refresh-ttl: 108000  # 30 days in seconds
+refresh-token-rotate: false
