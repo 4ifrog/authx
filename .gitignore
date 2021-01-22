@@ -6,7 +6,7 @@
 *.so
 *.dylib
 
-# Test binary, built with `go test -c`. Match all *.test but Dockerfile.test
+# Test binary, built with `go test -c`. Match all *.test except Dockerfile.test
 *.test
 !Dockerfile.test
 
