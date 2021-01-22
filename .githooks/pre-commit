@@ -32,20 +32,50 @@ function color_print() {
 
 cd "${ROOT_DIR}"
 
-declare -a commands=('make format' 'make lint' 'make test')
-declare -a messages=('Format Go files...' 'Lint Go files...' 'Run unit tests...')
+declare -a commands=(
+  'make format'
+  'make lint'
+  'make test'
+  'make int-test-full'
+)
 
-let i=0
-for cmd in "${commands[@]}"; do
-  echo
-  color_print 'blue' "${messages[${i}]}"
-  eval "${cmd}"
-  if [ "${?}" == 0 ]; then
-    color_print 'green' 'PASSED'
-  else
-    color_print 'red' 'FAILED'
-    exit 1
-  fi
+declare -a messages=(
+  'Format Go files...'
+  'Lint Go files...'
+  'Run unit tests...'
+  'Run integration tests...'
+)
 
-  let i=i+1
-done
+function pipeline() {
+  let i=0
+  for cmd in "${commands[@]}"; do
+    echo
+    color_print 'blue' "${messages[${i}]}"
+    eval "${cmd}"
+    if [ "${?}" == 0 ]; then
+      color_print 'green' 'PASSED'
+    else
+      color_print 'red' 'FAILED'
+      exit 1
+    fi
+
+    let i=i+1
+  done
+}
+
+function print_elapsed_time() {
+  start="${1}"
+  end="${2}"
+
+  elapsed=$((end-start))
+  echo "Total execution time: $((${elapsed}/3600))h $(((${elapsed}/60)%60))m $((${elapsed}%60))s"
+}
+
+function main() {
+  start=$(date +%s)
+  pipeline
+  end=$(date +%s)
+  print_elapsed_time "${start}" "${end}"
+}
+
+main

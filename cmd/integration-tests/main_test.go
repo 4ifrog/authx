@@ -6,11 +6,11 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/cybersamx/codefresh/pkg/api"
-	"github.com/cybersamx/codefresh/pkg/app"
-	"github.com/cybersamx/codefresh/pkg/config"
-	"github.com/cybersamx/codefresh/pkg/rdb"
-	"github.com/cybersamx/codefresh/pkg/server"
+	"github.com/cybersamx/authx/pkg/api"
+	"github.com/cybersamx/authx/pkg/app"
+	"github.com/cybersamx/authx/pkg/config"
+	"github.com/cybersamx/authx/pkg/server"
+	"github.com/cybersamx/authx/pkg/storage/mongo"
 )
 
 var a *app.App
@@ -28,13 +28,16 @@ func bootstrap(m *testing.M) int {
 	cfg.BindConfig(v)
 	cfg.LoadConfig(v)
 
-	// Redis
-	rc := rdb.New(cfg)
-	defer rc.Close()
+	// Mongo
+	store := mongo.New(cfg)
+	defer store.Close()
+	if err := store.SeedUserData(); err != nil {
+		panic(err)
+	}
 
 	// HTTP server
 	srv := server.New(cfg)
-	srv.BindAPIRoutes(api.GetRoutesFunc(), rc)
+	srv.BindAPIRoutes(api.GetRoutesFunc(), store)
 
 	// Put everything in an app and run it.
 	a = app.New(srv, cfg)

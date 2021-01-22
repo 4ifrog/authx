@@ -2,7 +2,7 @@
 # --- Build Stage ---
 #####################
 
-# Pin version as much as possible
+# Pin version
 FROM golang:1.14-alpine3.12 as build
 
 # Install system dependencies for the build
