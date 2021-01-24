@@ -97,7 +97,7 @@ int-test-containers: start-db-containers
 
 start-db-containers: scripts/start-db-containers.sh
 	@-echo "$(BOLD)$(BLUE)Starting database containers...$(RESET)"
-	$(PWD)/scripts/start-db-containers.sh
+	$(PROJECT_ROOT)/scripts/start-db-containers.sh
 
 ##@ end-containers: End database containers if they are running in the background
 
