@@ -1,102 +1,126 @@
+# Project
 PROJECT_ROOT := $(shell pwd)
-APP_BIN := ./bin
+PROJECT_BIN := ./bin
 APP_NAME = authx
 APP_SRC := ./cmd/$(APP_NAME)
 TEST_SRC := ./pkg/...
 INT_TEST_SRC := ./cmd/integration-tests
+
+# Deployment
 IMAGE_NAME := cybersamx/$(APP_NAME)
 
-# Target setup
+# Colorized print
+BOLD := $(shell tput bold)
+RED := $(shell tput setaf 1)
+BLUE := $(shell tput setaf 4)
+CYAN := $(shell tput setaf 6)
+RESET := $(shell tput sgr0)
 
-.PHONY: all clean build help run docker lint test int-test int-test-full int-test-docker
+# Set up the default target all and set up phony targets.
+
+.PHONY: all
 
 all: run
 
 ##@ run: Run application
 
+.PHONY: run
+
 run:
-	@echo "Running $(APP_NAME)..."
+	@-echo "$(BOLD)$(BLUE)Running $(APP_NAME)...$(RESET)"
 	@cd $(APP_SRC); go run .
 
 ##@ build: Build application
 
+.PHONY: build
+
 build:
-	@-echo "Building $(APP_NAME)..."
-	@-mkdir -p $(APP_BIN)
-	CGO_ENABLED=0 go build -o $(APP_BIN) $(APP_SRC)
-	@-cp $(APP_SRC)/config.yaml $(APP_BIN)
+	@-echo "$(BOLD)$(BLUE)Building $(APP_NAME)...$(RESET)"
+	@mkdir -p $(PROJECT_BIN)
+	CGO_ENABLED=0 go build -o $(PROJECT_BIN) $(APP_SRC)
+	@cp $(APP_SRC)/config.yaml $(PROJECT_BIN)
 
 ##@ docker-build: Build Docker image
 
+.PHONY: docker
+
 docker:
-	@echo "Building $(APP_NAME) docker image..."
+	@-echo "$(BOLD)$(BLUE)Building $(APP_NAME) docker image...$(RESET)"
 	@docker \
 		build \
 		-t $(IMAGE_NAME) \
 		.
 
-##@ install: Install dependencies
-
-install:
-	@echo "Installing $(APP_NAME) dependencies..."
-	CGO_ENABLED=0 go mod download
-
 ##@ lint: Run linter
 
+.PHONY: lint
+
 lint:
-	@echo "Linting $(APP_NAME)..."
+	@-echo "$(BOLD)$(BLUE)Linting $(APP_NAME)...$(RESET)"
 	golangci-lint run -v
 
 ##@ format: Run gofmt
 
+.PHONY: format
+
 format:
-	@echo "Formatting $(APP_NAME)..."
+	@-echo "$(BOLD)$(BLUE)Formatting $(APP_NAME)...$(RESET)"
 	gofmt -e -s -w .
 
 ##@ test: Run tests
 
-test:
-	@echo "Running unit tests..."
+.PHONY: test
+
+test: start-db-containers
+	@-echo "$(BOLD)$(CYAN)Running unit tests in $(APP_NAME)...$(RESET)"
 	CGO_ENABLED=0 go test $(TEST_SRC) -v -count=1
 
-##@ int-test: Run integration tests on the local machine/container w/o depenencies
-int-test:
+##@ int-test: Run integration tests on the local machine and no other database containers
+
+.PHONY: int-test
+
+int-test: start-db-containers
+	@-echo "$(BOLD)$(CYAN)Running integration tests in $(APP_NAME)...$(RESET)"
 	CGO_ENABLED=0 go test $(INT_TEST_SRC) -v -count=1
 
-##@ int-test: Run integration tests on the local machine/container with dependencies as containers
+##@ int-test-containers: Run integration tests and databases as containers within a netwwork context (useful for CI)
 
-int-test-full:
-	@echo "Running integration tests with dependencies as containers..."
-	@-docker-compose -f docker/docker-compose.test.yaml down --volumes
-	@docker-compose -f docker/docker-compose.test.yaml up mongo &	# Run in the background
-	# The application has a retry loop for connecting to the database.
-	@$(MAKE) int-test
-	@-docker-compose -f docker/docker-compose.test.yaml down --volumes
+.PHONY: int-test-containers
 
-##@ int-test-docker: Run integration tests in a container (useful for CI)
-
-int-test-docker:
-	@echo "Running integration tests in a docker container..."
-	@-docker-compose -f docker/docker-compose.test.yaml down --volumes
+int-test-containers: start-db-containers
+	@-echo "$(BOLD)$(CYAN)Running integration tests in $(APP_NAME) and dependencies as docker containers...$(RESET)"
 	@docker-compose -f docker/docker-compose.test.yaml up --build --abort-on-container-exit
-	@-docker-compose -f docker/docker-compose.test.yaml down --volumes
+
+##@ start-db-containers: Start database containers if they aren't running in the background
+
+.PHONY: start-db-containers
+
+start-db-containers: scripts/start-db-containers.sh
+	@-echo "$(BOLD)$(BLUE)Starting database containers...$(RESET)"
+	$(PWD)/scripts/start-db-containers.sh
+
+##@ end-containers: End database containers if they are running in the background
+
+.PHONY: end-containers
+
+end-containers:
+	@-echo "$(BOLD)$(BLUE)Ending database containers...$(RESET)"
+	@docker-compose -f docker/docker-compose.test.yaml down --volumes
 
 ##@ clean: Clean output files and build cache
 
-clean:
-	@echo "Removing files and directories..."
-	@-rm -rf $(APP_BIN)
-	@-$(MAKE) go-clean
+.PHONY: clean
 
-go-clean:
-	@echo "Cleaning build and test cache..."
+clean:
+	@-echo "$(BOLD)$(RED)Removing build cache, test cache and files...$(RESET)"
+	@-rm -rf $(PROJECT_BIN)
 	go clean -testcache
 
 ##@ help: Help
 
 .PHONY: help
-all: help
+
 help: Makefile
-	@echo " Usage:\n  make <target>"
-	@echo
-	@sed -n 's/^##@//p' $< | column -t -s ':' | sed -e 's/[^ ]*/ &/2'
+	@-echo " Usage:\n  make $(BLUE)<target>$(RESET)"
+	@-echo
+	@-sed -n 's/^##@//p' $< | column -t -s ':' | sed -e 's/[^ ]*/ &/2'

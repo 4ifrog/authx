@@ -30,16 +30,18 @@ function color_print() {
 
 # --- Run make scripts ---
 
-cd "${ROOT_DIR}"
+cd "${ROOT_DIR}" || exit 1
 
 declare -a commands=(
+  'make end-containers'
   'make format'
   'make lint'
   'make test'
-  'make int-test-full'
+  'make int-test'
 )
 
 declare -a messages=(
+  'Tear down containers and start clean'
   'Format Go files...'
   'Lint Go files...'
   'Run unit tests...'
@@ -47,19 +49,18 @@ declare -a messages=(
 )
 
 function pipeline() {
-  let i=0
+  (( i=0 ))
   for cmd in "${commands[@]}"; do
     echo
     color_print 'blue' "${messages[${i}]}"
-    eval "${cmd}"
-    if [ "${?}" == 0 ]; then
+    if eval "${cmd}"; then
       color_print 'green' 'PASSED'
     else
       color_print 'red' 'FAILED'
       exit 1
     fi
 
-    let i=i+1
+    (( i++ ))
   done
 }
 
@@ -68,7 +69,7 @@ function print_elapsed_time() {
   end="${2}"
 
   elapsed=$((end-start))
-  echo "Total execution time: $((${elapsed}/3600))h $(((${elapsed}/60)%60))m $((${elapsed}%60))s"
+  echo "Total execution time: $((elapsed/3600))h $(((elapsed/60)%60))m $((elapsed%60))s"
 }
 
 function main() {

@@ -66,24 +66,20 @@ type StorageMongo struct {
 	db     *mongo.Database
 }
 
-func newClient(parent context.Context, uri string, retries int, initialDelay, maxDelay time.Duration) (*mongo.Client, error) {
+func newClient(parent context.Context, dsn string, retries int, initialDelay, maxDelay time.Duration) (*mongo.Client, error) {
 	var client *mongo.Client
 	timeout := maxDelay
 
 	retrier := retry.NewRetrier(retries, initialDelay, maxDelay)
 	err := retrier.RunContext(parent, func(ctx context.Context) (retErr error) {
 		var cterr error
-		client, cterr = mongo.NewClient(options.Client().ApplyURI(uri))
+		client, cterr = mongo.NewClient(options.Client().ApplyURI(dsn))
 		if cterr != nil {
 			log.Fatal("can't create an instance of mongo client")
 		}
 
 		// Disconnect only if we can't connect or ping the datastore.
-		//
-		// client.Disconnect() returns an error, which should be checked. We wrap the function call
-		// in an anonymous function so that we can capture the error.
 		closeFn := func() {
-			log.Printf("disconnect from mongo")
 			dctx, dcancel := context.WithTimeout(ctx, timeout)
 			defer dcancel()
 			if derr := client.Disconnect(dctx); derr != nil && derr != mongo.ErrClientDisconnected {
@@ -93,7 +89,7 @@ func newClient(parent context.Context, uri string, retries int, initialDelay, ma
 		}
 
 		// Connect the datastore.
-		log.Printf("attempting to connect mongo %s\n", uri)
+		log.Printf("attempting to connect mongo %s\n", maskDSN(dsn))
 		cctx, ccancel := context.WithTimeout(ctx, timeout)
 		defer ccancel()
 		if cerr := client.Connect(cctx); cerr != nil {
@@ -104,19 +100,19 @@ func newClient(parent context.Context, uri string, retries int, initialDelay, ma
 			} else {
 				log.Printf("can't connect mongo: %v\n", cerr)
 				retErr = cerr
-				return // Return the err to retrier telling it to retry.
+				return
 			}
 		}
 
 		// Ping the datastore.
-		log.Printf("attempting to ping mongo %s\n", uri)
+		log.Printf("attempting to ping mongo %s\n", maskDSN(dsn))
 		pctx, pcancel := context.WithTimeout(ctx, timeout)
 		defer pcancel()
 		if perr := client.Ping(pctx, readpref.Primary()); perr != nil {
 			defer closeFn()
 			log.Printf("can't ping mongo: %v\n", perr)
 			retErr = perr
-			return // Return the err to retrier telling it to retry.
+			return
 		}
 
 		retErr = nil
@@ -127,18 +123,18 @@ func newClient(parent context.Context, uri string, retries int, initialDelay, ma
 }
 
 func New(cfg *config.Config) *StorageMongo {
-	uri := cfg.MongoAddr
+	dsn := cfg.MongoAddr
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	client, err := newClient(ctx, uri, retries, initialDelay, maxDelay)
+	client, err := newClient(ctx, dsn, retries, initialDelay, maxDelay)
 
 	if err != nil {
 		log.Printf("exhausted all %d retries", retries)
 		panic(err)
 	}
 
-	log.Println("connected to mongo successfully")
+	log.Printf("connected to mongo %s successfully\n", maskDSN(dsn))
 
 	// Additional setup.
 	db := client.Database(database)

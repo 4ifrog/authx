@@ -1,6 +1,6 @@
 # Authx
 
-An implementation of auth service in Go.
+An implementation of auth service in Go. It's still a work-in-progress.
 
 ## Setup
 
@@ -84,6 +84,26 @@ curl --location --request POST 'http://localhost:8080/v1/signin' \
 	"password": "mypassword"
 }'
 ```
+
+## Testing
+
+In the past, it really doesn't make sense to run database along with unit tests. The setup was slow and brittle. We mock the database in order to test code associated with the database.
+
+With the advent of Docker, we get to set up the exact version of the database as a container on the development machine for unit testing. Even better, the setup is fast and flexible. The unit and integration tests in this project rely an actual database for testing.
+
+### Setup Scripts and Makefile
+
+Since we are including the database (running in containers) in both our unit and integration tests, we use [scripts/start-db-containers.sh](scripts/start-db-containers.sh) to orchestrate the following operations:
+
+1. Spin up the database containers if they are not running. Skip start if the containers are running.
+1. Wait till the database containers are ready for connection. After starting the container, we still need to wait for the TCP port to become open so that the unit or integration tests can start.
+1. Start the unit or integration tests.
+
+But don't call the script directly, always use the Makefile to run any build/test operations.
+
+* `make test` - Run unit tests.
+* `make int-test` - Run integration tests.
+* `make end-db` - Tear down the database containers.
 
 # Reference
 

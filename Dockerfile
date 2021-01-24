@@ -3,7 +3,7 @@
 #####################
 
 # Pin version
-FROM golang:1.14-alpine3.12 as build
+FROM golang:1.15.6-alpine3.13 as build
 
 # Install system dependencies for the build
 RUN apk add --no-cache \
@@ -28,7 +28,7 @@ RUN make build
 # --- Final Stage ---
 #####################
 
-FROM alpine:3.12
+FROM alpine:3.13
 
 # Install tini - need for production for graceful shutdowns
 RUN apk add --no-cache tini
