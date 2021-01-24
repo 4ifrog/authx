@@ -5,6 +5,7 @@ on:
     branches:
       - master
 
+# All build/logic lives in the Makefile. This file just define the sequence.
 jobs:
   build:
     runs-on:

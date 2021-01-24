@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# This script defines the sequence of a pre-commit flow, which is declared as
+# in the COMMANDS variable. All build/logic lives in the Makefile.
+
 # --- Initialization ---
 
 bold=$(tput bold)
@@ -32,15 +35,15 @@ function color_print() {
 
 cd "${ROOT_DIR}" || exit 1
 
-declare -a commands=(
-  'make end-containers'
+declare -a COMMANDS=(
+  'make end-db-containers'
   'make format'
   'make lint'
   'make test'
   'make int-test'
 )
 
-declare -a messages=(
+declare -a MESSAGES=(
   'Tear down containers and start clean'
   'Format Go files...'
   'Lint Go files...'
@@ -50,9 +53,9 @@ declare -a messages=(
 
 function pipeline() {
   (( i=0 ))
-  for cmd in "${commands[@]}"; do
+  for cmd in "${COMMANDS[@]}"; do
     echo
-    color_print 'blue' "${messages[${i}]}"
+    color_print 'blue' "${MESSAGES[${i}]}"
     if eval "${cmd}"; then
       color_print 'green' 'PASSED'
     else

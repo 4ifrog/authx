@@ -1,3 +1,6 @@
+# For deploying the application and its dependencies/databases as containers running within
+# a network context. It calls the Dockerfile, which starts the application.
+
 version: '3.7'
 
 networks:

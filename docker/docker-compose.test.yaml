@@ -1,3 +1,6 @@
+# For testing the application and its dependencies/databases as containers running within
+# a network context. It calls Dockerfile.test, which runs the integration tests.
+
 version: '3.7'
 
 networks:

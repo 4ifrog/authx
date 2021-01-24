@@ -99,11 +99,11 @@ start-db-containers: scripts/start-db-containers.sh
 	@-echo "$(BOLD)$(BLUE)Starting database containers...$(RESET)"
 	$(PROJECT_ROOT)/scripts/start-db-containers.sh
 
-##@ end-containers: End database containers if they are running in the background
+##@ end-db-containers: End database containers if they are running in the background
 
-.PHONY: end-containers
+.PHONY: end-db-containers
 
-end-containers:
+end-db-containers:
 	@-echo "$(BOLD)$(BLUE)Ending database containers...$(RESET)"
 	@docker-compose -f docker/docker-compose.test.yaml down --volumes
 
