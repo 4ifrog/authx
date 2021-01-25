@@ -15,7 +15,7 @@ COPY Makefile ./
 COPY go.mod go.sum ./
 RUN make install
 
-# Copy the project and run integration tests
+# Copy the project and run tests
 COPY . ./
-CMD make int-test
+CMD make test
 

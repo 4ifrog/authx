@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMaskDSN(t *testing.T) {
+func Test_MaskDSN(t *testing.T) {
 	dsns := []struct {
 		uri       string
 		maskedURI string

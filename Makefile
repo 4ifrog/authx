@@ -4,7 +4,6 @@ PROJECT_BIN := ./bin
 APP_NAME = authx
 APP_SRC := ./cmd/$(APP_NAME)
 TEST_SRC := ./pkg/...
-INT_TEST_SRC := ./cmd/integration-tests
 
 # Deployment
 IMAGE_NAME := cybersamx/$(APP_NAME)
@@ -72,23 +71,15 @@ format:
 .PHONY: test
 
 test: start-db-containers
-	@-echo "$(BOLD)$(CYAN)Running unit tests in $(APP_NAME)...$(RESET)"
+	@-echo "$(BOLD)$(CYAN)Running tests...$(RESET)"
 	CGO_ENABLED=0 go test $(TEST_SRC) -v -count=1
 
-##@ int-test: Run integration tests on the local machine and no other database containers
+##@ int-containers: Run tests and databases as containers within a netwwork context (useful for CI)
 
-.PHONY: int-test
+.PHONY: test-containers
 
-int-test: start-db-containers
-	@-echo "$(BOLD)$(CYAN)Running integration tests in $(APP_NAME)...$(RESET)"
-	CGO_ENABLED=0 go test $(INT_TEST_SRC) -v -count=1
-
-##@ int-test-containers: Run integration tests and databases as containers within a netwwork context (useful for CI)
-
-.PHONY: int-test-containers
-
-int-test-containers: start-db-containers
-	@-echo "$(BOLD)$(CYAN)Running integration tests in $(APP_NAME) and dependencies as docker containers...$(RESET)"
+test-containers: start-db-containers
+	@-echo "$(BOLD)$(CYAN)Running tests and dependencies as docker containers...$(RESET)"
 	@docker-compose -f docker/docker-compose.test.yaml up --build --abort-on-container-exit
 
 ##@ start-db-containers: Start database containers if they aren't running in the background

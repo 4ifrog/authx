@@ -1,12 +1,12 @@
-package tests
+package api
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/spf13/viper"
 
-	"github.com/cybersamx/authx/pkg/api"
 	"github.com/cybersamx/authx/pkg/app"
 	"github.com/cybersamx/authx/pkg/config"
 	"github.com/cybersamx/authx/pkg/server"
@@ -16,12 +16,15 @@ import (
 var a *app.App
 
 func TestMain(m *testing.M) {
-	// TestMain needs to use os.Exit to wrap the bootstrapper function so that
-	// the `defer` can be executed properly.
-	os.Exit(bootstrap(m))
+	bootstrap()
+	code := m.Run()
+	teardown()
+	os.Exit(code)
 }
 
-func bootstrap(m *testing.M) int {
+func bootstrap() {
+	fmt.Println("Bootstrap...")
+
 	// Config
 	v := viper.GetViper()
 	cfg := config.New()
@@ -30,17 +33,20 @@ func bootstrap(m *testing.M) int {
 
 	// Mongo
 	store := mongo.New(cfg)
-	defer store.Close()
 	if err := store.SeedUserData(); err != nil {
 		panic(err)
 	}
 
 	// HTTP server
 	srv := server.New(cfg)
-	srv.BindAPIRoutes(api.GetRoutesFunc(), store)
+	srv.BindAPIRoutes(GetRoutesFunc(), store)
 
 	// Put everything in an app and run it.
-	a = app.New(srv, cfg)
+	a = app.New(srv, store, cfg)
+}
 
-	return m.Run()
+func teardown() {
+	fmt.Println("Teardown...")
+
+	a.Store.Close()
 }

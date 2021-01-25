@@ -68,7 +68,7 @@ redis-addr: redis.net:35380
 	require.NoError(t, err)
 }
 
-func TestDefaultValues(t *testing.T) {
+func Test_DefaultValues(t *testing.T) {
 	viper.Reset()
 
 	cfg := New()
@@ -86,7 +86,7 @@ func TestDefaultValues(t *testing.T) {
 	assert.Equal(t, "localhost:6379", cfg.RedisAddr)
 }
 
-func TestLoadFromConfigFile(t *testing.T) {
+func Test_LoadFromConfigFile(t *testing.T) {
 	viper.Reset()
 
 	cfg := New()
@@ -109,7 +109,7 @@ func TestLoadFromConfigFile(t *testing.T) {
 	assert.Equal(t, "redis.net:35380", cfg.RedisAddr)
 }
 
-func TestLoadFromEnvVariables(t *testing.T) {
+func Test_LoadFromEnvVariables(t *testing.T) {
 	viper.Reset()
 
 	cfg := New()
@@ -136,7 +136,7 @@ func TestLoadFromEnvVariables(t *testing.T) {
 	assert.Equal(t, "10.20.30.40", cfg.RedisAddr)
 }
 
-func TestLoadFromFlags(t *testing.T) {
+func Test_LoadFromFlags(t *testing.T) {
 	viper.Reset()
 
 	cfg := New()
@@ -158,7 +158,7 @@ func TestLoadFromFlags(t *testing.T) {
 	assert.Equal(t, "redis.example.com:30000", cfg.RedisAddr)
 }
 
-func TestOverrides(t *testing.T) {
+func Test_Overrides(t *testing.T) {
 	viper.Reset()
 
 	cfg := New()

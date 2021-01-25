@@ -36,19 +36,15 @@ function color_print() {
 cd "${ROOT_DIR}" || exit 1
 
 declare -a COMMANDS=(
-  'make end-db-containers'
   'make format'
   'make lint'
   'make test'
-  'make int-test'
 )
 
 declare -a MESSAGES=(
-  'Tear down containers and start clean'
   'Format Go files...'
   'Lint Go files...'
-  'Run unit tests...'
-  'Run integration tests...'
+  'Run tests...'
 )
 
 function pipeline() {

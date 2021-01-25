@@ -9,12 +9,14 @@ import (
 
 	"github.com/cybersamx/authx/pkg/config"
 	"github.com/cybersamx/authx/pkg/server"
+	"github.com/cybersamx/authx/pkg/storage"
 )
 
 type App struct {
 	config *config.Config
 
 	Router *gin.Engine
+	Store  storage.Storage
 }
 
 func (a *App) Run() {
@@ -25,10 +27,11 @@ func (a *App) Run() {
 	log.Fatal(http.ListenAndServe(addr, a.Router))
 }
 
-func New(s *server.Server, cfg *config.Config) *App {
+func New(s *server.Server, ds storage.Storage, cfg *config.Config) *App {
 	app := &App{
-		Router: s.Router,
 		config: cfg,
+		Router: s.Router,
+		Store:  ds,
 	}
 
 	return app

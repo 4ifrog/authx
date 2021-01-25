@@ -11,5 +11,6 @@ import (
 func GetRoutesFunc() server.RegisterRoutesFunc {
 	return func(parentGrp *gin.RouterGroup, cfg *config.Config, store storage.Storage) {
 		parentGrp.POST("/signin", SignInHandler(cfg, store))
+		parentGrp.GET("/signout", SignOutHandler(cfg, store))
 	}
 }

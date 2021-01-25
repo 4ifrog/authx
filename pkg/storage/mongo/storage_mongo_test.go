@@ -8,7 +8,7 @@ import (
 	"github.com/cybersamx/authx/pkg/config"
 )
 
-func TestNewClient(t *testing.T) {
+func Test_NewClient(t *testing.T) {
 	cfg := config.New()
 	cfg.MongoAddr = "mongodb://nobody:secrets@localhost:27017/authx"
 

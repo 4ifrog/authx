@@ -29,6 +29,6 @@ func main() {
 	srv.BindAPIRoutes(api.GetRoutesFunc(), store)
 
 	// Put everything in an app and run it.
-	a := app.New(srv, cfg)
+	a := app.New(srv, store, cfg)
 	a.Run()
 }

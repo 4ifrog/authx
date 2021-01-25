@@ -8,6 +8,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 
+	"github.com/cybersamx/authx/pkg/authn"
 	"github.com/cybersamx/authx/pkg/config"
 	"github.com/cybersamx/authx/pkg/models"
 	"github.com/cybersamx/authx/pkg/storage"
@@ -77,22 +78,12 @@ func SignInHandler(cfg *config.Config, store storage.Storage) gin.HandlerFunc {
 			return
 		}
 
-		user, err := store.GetUserByUsername(ctx, login.Username)
-		if err == storage.ErrorNotFound {
+		user, err := authn.Authenticate(ctx, store, login.Username, login.Password)
+		if err == authn.ErrUserNotFound || err == authn.ErrInvalidCredentials {
 			ctx.JSONP(http.StatusUnauthorized, "Invalid authentication credentials")
 			return
 		} else if err != nil {
 			ctx.JSONP(http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		if user == nil {
-			ctx.JSONP(http.StatusInternalServerError, "user is nil")
-			return
-		}
-
-		if user.Username != login.Username || !ValidateHashedString(user.Password, login.Password, user.Salt) {
-			ctx.JSONP(http.StatusUnauthorized, "Invalid authentication credentials")
 			return
 		}
 
@@ -111,5 +102,11 @@ func SignInHandler(cfg *config.Config, store storage.Storage) gin.HandlerFunc {
 			AccessToken:  at.Value,
 			RefreshToken: rt.Value,
 		})
+	}
+}
+
+func SignOutHandler(cfg *config.Config, store storage.Storage) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctx.JSONP(http.StatusNotImplemented, "Not implemented")
 	}
 }
