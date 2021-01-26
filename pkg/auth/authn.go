@@ -1,4 +1,4 @@
-package authn
+package auth
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/cybersamx/authx/pkg/models"
-	"github.com/cybersamx/authx/pkg/storage"
+	"github.com/cybersamx/authx/pkg/store"
 )
 
 const (
@@ -21,6 +21,8 @@ const (
 var (
 	ErrUserNotFound       = errors.New("user not found")
 	ErrInvalidCredentials = errors.New("invalid authentication credentials")
+	ErrMissingBearer      = errors.New("missing bearer")
+	ErrInvalidBearer      = errors.New("bearer has invalid content")
 )
 
 func hashString(str, salt string) string {
@@ -38,9 +40,9 @@ func validateHashedString(hashed, clear, salt string) bool {
 	return subtle.ConstantTimeCompare([]byte(hashed), []byte(hashedClear)) == 1
 }
 
-func Authenticate(ctx context.Context, store storage.Storage, username, password string) (*models.User, error) {
-	user, err := store.GetUserByUsername(ctx, username)
-	if err == storage.ErrorNotFound {
+func Authenticate(ctx context.Context, ds store.DataStore, username, password string) (*models.User, error) {
+	user, err := ds.GetUserByUsername(ctx, username)
+	if err == store.ErrorNotFound {
 		return nil, ErrUserNotFound
 	} else if err != nil {
 		return nil, err

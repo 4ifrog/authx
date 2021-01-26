@@ -5,12 +5,12 @@ import (
 
 	"github.com/cybersamx/authx/pkg/config"
 	"github.com/cybersamx/authx/pkg/server"
-	"github.com/cybersamx/authx/pkg/storage"
+	"github.com/cybersamx/authx/pkg/store"
 )
 
 func GetRoutesFunc() server.RegisterRoutesFunc {
-	return func(parentGrp *gin.RouterGroup, cfg *config.Config, store storage.Storage) {
-		parentGrp.POST("/signin", SignInHandler(cfg, store))
-		parentGrp.GET("/signout", SignOutHandler(cfg, store))
+	return func(parentGrp *gin.RouterGroup, cfg *config.Config, ds store.DataStore) {
+		parentGrp.POST("/signin", SignInHandler(cfg, ds))
+		parentGrp.GET("/signout", SignOutHandler(cfg, ds))
 	}
 }

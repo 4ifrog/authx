@@ -15,6 +15,7 @@ import (
 	"github.com/cybersamx/authx/pkg/config"
 	"github.com/cybersamx/authx/pkg/crypto"
 	"github.com/cybersamx/authx/pkg/models"
+	"github.com/cybersamx/authx/pkg/utils"
 )
 
 const (
@@ -42,7 +43,7 @@ var seedUsers = []struct {
 	{"3", "patel", "patel_rules"},
 }
 
-// setupMongo configure the mongo datastore with indexes, collections, etc.
+// setupMongo configure the mongo store with indexes, collections, etc.
 func setupMongo(parentCtx context.Context, db *mongo.Database) error {
 	ctx, cancel := context.WithTimeout(parentCtx, atomicTimeout)
 	defer cancel()
@@ -59,9 +60,9 @@ func setupMongo(parentCtx context.Context, db *mongo.Database) error {
 	return nil
 }
 
-// --- StorageMongo ---
+// --- StoreMongo ---
 
-type StorageMongo struct {
+type StoreMongo struct {
 	client *mongo.Client
 	db     *mongo.Database
 }
@@ -78,7 +79,7 @@ func newClient(parent context.Context, dsn string, retries int, initialDelay, ma
 			log.Fatal("can't create an instance of mongo client")
 		}
 
-		// Disconnect only if we can't connect or ping the datastore.
+		// Disconnect only if we can't connect or ping the store.
 		closeFn := func() {
 			dctx, dcancel := context.WithTimeout(ctx, timeout)
 			defer dcancel()
@@ -88,7 +89,7 @@ func newClient(parent context.Context, dsn string, retries int, initialDelay, ma
 			}
 		}
 
-		// Connect the datastore.
+		// Connect the store.
 		log.Printf("attempting to connect mongo %s\n", maskDSN(dsn))
 		cctx, ccancel := context.WithTimeout(ctx, timeout)
 		defer ccancel()
@@ -96,7 +97,7 @@ func newClient(parent context.Context, dsn string, retries int, initialDelay, ma
 			defer closeFn()
 
 			if cerr == topology.ErrTopologyConnected {
-				// Already connected, so continue to ping the datastore.
+				// Already connected, so continue to ping the store.
 			} else {
 				log.Printf("can't connect mongo: %v\n", cerr)
 				retErr = cerr
@@ -104,7 +105,7 @@ func newClient(parent context.Context, dsn string, retries int, initialDelay, ma
 			}
 		}
 
-		// Ping the datastore.
+		// Ping the store.
 		log.Printf("attempting to ping mongo %s\n", maskDSN(dsn))
 		pctx, pcancel := context.WithTimeout(ctx, timeout)
 		defer pcancel()
@@ -122,7 +123,7 @@ func newClient(parent context.Context, dsn string, retries int, initialDelay, ma
 	return client, err
 }
 
-func New(cfg *config.Config) *StorageMongo {
+func New(cfg *config.Config) *StoreMongo {
 	dsn := cfg.MongoAddr
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -142,15 +143,15 @@ func New(cfg *config.Config) *StorageMongo {
 		panic(err)
 	}
 
-	return &StorageMongo{
+	return &StoreMongo{
 		client: client,
 		db:     db,
 	}
 }
 
-// --- Implements storage.Storage ---
+// --- Implements store.Storage ---
 
-func (sm *StorageMongo) Close() {
+func (sm *StoreMongo) Close() {
 	ctx, cancel := context.WithTimeout(context.Background(), atomicTimeout)
 	defer cancel()
 	if err := sm.client.Disconnect(ctx); err != nil {
@@ -158,7 +159,7 @@ func (sm *StorageMongo) Close() {
 	}
 }
 
-func (sm *StorageMongo) SaveAccessToken(parent context.Context, at *models.AccessToken) error {
+func (sm *StoreMongo) SaveAccessToken(parent context.Context, at *models.AccessToken) error {
 	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
 	defer cancel()
 
@@ -170,7 +171,7 @@ func (sm *StorageMongo) SaveAccessToken(parent context.Context, at *models.Acces
 	return nil
 }
 
-func (sm *StorageMongo) SaveRefreshToken(parent context.Context, rt *models.RefreshToken) error {
+func (sm *StoreMongo) SaveRefreshToken(parent context.Context, rt *models.RefreshToken) error {
 	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
 	defer cancel()
 
@@ -182,7 +183,7 @@ func (sm *StorageMongo) SaveRefreshToken(parent context.Context, rt *models.Refr
 	return nil
 }
 
-func (sm *StorageMongo) getUser(parent context.Context, key, val string) (*models.User, error) {
+func (sm *StoreMongo) getUser(parent context.Context, key, val string) (*models.User, error) {
 	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
 	defer cancel()
 
@@ -197,7 +198,7 @@ func (sm *StorageMongo) getUser(parent context.Context, key, val string) (*model
 	return &user, nil
 }
 
-func (sm *StorageMongo) SeedUserData() error {
+func (sm *StoreMongo) SeedUserData() error {
 	ctx, cancel := context.WithTimeout(context.Background(), atomicTimeout)
 	defer cancel()
 
@@ -207,7 +208,7 @@ func (sm *StorageMongo) SeedUserData() error {
 
 	for _, seedUser := range seedUsers {
 		// Generate a user.
-		salt, err := crypto.GetRandString(pwdSaltLen)
+		salt, err := utils.GetRandSecret(pwdSaltLen)
 		if err != nil {
 			panic(err)
 		}
@@ -228,10 +229,10 @@ func (sm *StorageMongo) SeedUserData() error {
 	return nil
 }
 
-func (sm *StorageMongo) GetUser(parent context.Context, id string) (*models.User, error) {
+func (sm *StoreMongo) GetUser(parent context.Context, id string) (*models.User, error) {
 	return sm.getUser(parent, "_id", id)
 }
 
-func (sm *StorageMongo) GetUserByUsername(parent context.Context, username string) (*models.User, error) {
+func (sm *StoreMongo) GetUserByUsername(parent context.Context, username string) (*models.User, error) {
 	return sm.getUser(parent, "username", username)
 }

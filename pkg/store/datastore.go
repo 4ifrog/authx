@@ -1,4 +1,4 @@
-package storage
+package store
 
 import (
 	"context"
@@ -11,7 +11,7 @@ var (
 	ErrorNotFound = errors.New("user not found")
 )
 
-type Storage interface {
+type DataStore interface {
 	// General
 	Close()
 

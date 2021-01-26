@@ -4,10 +4,10 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/cybersamx/authx/pkg/config"
-	"github.com/cybersamx/authx/pkg/storage"
+	"github.com/cybersamx/authx/pkg/store"
 )
 
-type RegisterRoutesFunc func(parentGrp *gin.RouterGroup, cfg *config.Config, store storage.Storage)
+type RegisterRoutesFunc func(parentGrp *gin.RouterGroup, cfg *config.Config, store store.DataStore)
 
 type Server struct {
 	Router  *gin.Engine
@@ -15,8 +15,8 @@ type Server struct {
 	cfg     *config.Config
 }
 
-func (s *Server) BindAPIRoutes(fn RegisterRoutesFunc, store storage.Storage) {
-	fn(s.rootGrp, s.cfg, store)
+func (s *Server) BindAPIRoutes(fn RegisterRoutesFunc, ds store.DataStore) {
+	fn(s.rootGrp, s.cfg, ds)
 }
 
 func New(cfg *config.Config) *Server {

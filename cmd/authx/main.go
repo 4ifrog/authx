@@ -7,7 +7,7 @@ import (
 	"github.com/cybersamx/authx/pkg/app"
 	"github.com/cybersamx/authx/pkg/config"
 	"github.com/cybersamx/authx/pkg/server"
-	"github.com/cybersamx/authx/pkg/storage/mongo"
+	"github.com/cybersamx/authx/pkg/store/mongo"
 )
 
 func main() {
@@ -18,17 +18,17 @@ func main() {
 	cfg.LoadConfig(v)
 
 	// Mongo
-	store := mongo.New(cfg)
-	defer store.Close()
-	if err := store.SeedUserData(); err != nil {
+	ds := mongo.New(cfg)
+	defer ds.Close()
+	if err := ds.SeedUserData(); err != nil {
 		panic(err)
 	}
 
 	// HTTP server
 	srv := server.New(cfg)
-	srv.BindAPIRoutes(api.GetRoutesFunc(), store)
+	srv.BindAPIRoutes(api.GetRoutesFunc(), ds)
 
 	// Put everything in an app and run it.
-	a := app.New(srv, store, cfg)
+	a := app.New(srv, ds, cfg)
 	a.Run()
 }
