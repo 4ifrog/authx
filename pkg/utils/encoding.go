@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/rand"
+	"encoding/gob"
 	mathrand "math/rand"
 	"time"
 )
@@ -53,4 +55,25 @@ func GetRandBytes(n int, alphabet ...byte) []byte {
 
 func GetRandString(n int, alphabet ...byte) string {
 	return string(GetRandBytes(n, alphabet...))
+}
+
+func GOBEncodedBytes(val interface{}) (*bytes.Buffer, error) {
+	// Use native gob encoding for the fastest serialization.
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(val); err != nil {
+		return nil, err
+	}
+
+	return &buf, nil
+}
+
+func GOBDecodedBytes(data []byte, val interface{}) error {
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+	if err := dec.Decode(val); err != nil {
+		return err
+	}
+
+	return nil
 }

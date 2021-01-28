@@ -30,40 +30,26 @@ func parseChunkFromJWT(t *testing.T, jwt string, index int) *httpexpect.Object {
 	chunks := strings.Split(jwt, ".")
 	require.Equal(t, 3, len(chunks))
 	var payload map[string]interface{}
-	decoded, err := base64.StdEncoding.DecodeString(chunks[index])
+	decoded, err := base64.RawStdEncoding.DecodeString(chunks[index])
 	require.NoError(t, err)
 	err = json.Unmarshal(decoded, &payload)
 	require.NoError(t, err)
 	return httpexpect.NewObject(t, payload)
 }
 
-func testExpiry(t *testing.T, at *httpexpect.Object) bool {
+func testExpiry(t *testing.T, obj *httpexpect.Object) bool {
 	// The expiry in the claims must match the expire_at field in the data payload.
 
-	// expire_at
-	expireAt, err := time.Parse(time.RFC3339Nano, at.Value("expire_at").String().Raw())
+	// expiry
+	expireAt, err := time.Parse(time.RFC3339Nano, obj.Value("expiry").String().Raw())
 	require.NoError(t, err)
 
-	// value.exp
-	jwtToken := at.Value("value").String().Raw()
+	// exp field in the base64 decoded JWT
+	jwtToken := obj.Value("access_token").String().Raw()
 	claims := parseChunkFromJWT(t, jwtToken, 1)
 	epoch := claims.Value("exp").Number().Raw()
 
 	return expireAt.Unix() == int64(epoch)
-}
-
-func testID(t *testing.T, at *httpexpect.Object) bool {
-	// The id in the claims must match the user_id field in the data payload.
-
-	// user_id
-	userID := at.Value("user_id").String().Raw()
-
-	// value.id
-	jwtToken := at.Value("value").String().Raw()
-	claims := parseChunkFromJWT(t, jwtToken, 1)
-	id := claims.Value("id").String().Raw()
-
-	return userID == id
 }
 
 func Test_PostSignIn(t *testing.T) {
@@ -81,29 +67,26 @@ func Test_PostSignIn(t *testing.T) {
 		JSON().Object()
 
 	// Validate access token
-	at := obj.Value("access_token").Object()
+	assert.NotNil(t, obj)
+	at := obj.Value("access_token").String().Raw()
 	assert.NotEmpty(t, at)
-	assert.True(t, testExpiry(t, at))
-	assert.True(t, testID(t, at))
+	assert.True(t, testExpiry(t, obj))
 
 	// Validate refresh token
-	rt := obj.Value("refresh_token").Object()
-	assert.NotNil(t, rt)
-	assert.NotEmpty(t, rt.Value("value").String().Raw())
+	rt := obj.Value("refresh_token").String().Raw()
+	assert.NotEmpty(t, rt)
 }
 
 func Test_SignOutHandler(t *testing.T) {
 	// Setup
 	expect := newHTTPExpect(t)
 
+	// Add cookie
 	req := expect.GET("/v1/signout")
-	req.WithHeaders(map[string]string{
-		"Authorization": "Bearer XXXX",
-	})
 
 	// Run
-	msg := req.Expect().Status(http.StatusNotImplemented).Body().Raw()
+	msg := req.Expect().Status(http.StatusOK).Body().Raw()
 
 	// Validate
-	assert.Equal(t, `"Not implemented"`, msg)
+	assert.Equal(t, `"logout"`, msg)
 }

@@ -21,8 +21,6 @@ const (
 var (
 	ErrUserNotFound       = errors.New("user not found")
 	ErrInvalidCredentials = errors.New("invalid authentication credentials")
-	ErrMissingBearer      = errors.New("missing bearer")
-	ErrInvalidBearer      = errors.New("bearer has invalid content")
 )
 
 func hashString(str, salt string) string {
@@ -40,8 +38,8 @@ func validateHashedString(hashed, clear, salt string) bool {
 	return subtle.ConstantTimeCompare([]byte(hashed), []byte(hashedClear)) == 1
 }
 
-func Authenticate(ctx context.Context, ds store.DataStore, username, password string) (*models.User, error) {
-	user, err := ds.GetUserByUsername(ctx, username)
+func Authenticate(parent context.Context, ds store.DataStore, username, password string) (*models.User, error) {
+	user, err := ds.GetUserByUsername(parent, username)
 	if err == store.ErrorNotFound {
 		return nil, ErrUserNotFound
 	} else if err != nil {

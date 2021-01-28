@@ -2,23 +2,22 @@ package auth
 
 import (
 	"errors"
-	"net/http"
-	"strings"
 	"time"
 
 	"github.com/square/go-jose/v3"
 	"github.com/square/go-jose/v3/jwt"
 )
 
-// UserClaims represents the claims of a JWT.
-type UserClaims struct {
-	UserID string `json:"id"`
+// Types of claims
+
+// JWTClaims represents the claims of a JWT.
+type JWTClaims struct {
 	jwt.Claims
+	UserID string `json:"uid,omitempty"`
 }
 
 const (
-	issuer  = "Authx"
-	subject = "Access token"
+	issuer = "https://github.com/cybersamx/authx"
 )
 
 var (
@@ -26,30 +25,14 @@ var (
 	ErrExpiredJWT = errors.New("expired jwt")
 )
 
-// GetBearerFromHeader gets the token token from the header string.
-func GetBearerFromHeader(header string) (string, error) {
-	if header == "" {
-		return "", ErrMissingBearer
-	}
-
-	chunks := strings.Split(header, " ")
-	if len(chunks) == 2 && chunks[0] == "Bearer" {
-		return chunks[1], nil
-	}
-
-	return "", ErrInvalidBearer
-}
-
 func NewJWT(id, uid, secrets string, issueAt, expireAt time.Time) (string, error) {
-	claims := UserClaims{
+	claims := JWTClaims{
 		UserID: uid,
 		Claims: jwt.Claims{
-			Issuer:    issuer,
-			Subject:   subject,
-			Expiry:    jwt.NewNumericDate(expireAt),
-			NotBefore: jwt.NewNumericDate(issueAt),
-			IssuedAt:  jwt.NewNumericDate(issueAt),
-			ID:        id,
+			Issuer:   issuer,
+			Expiry:   jwt.NewNumericDate(expireAt),
+			IssuedAt: jwt.NewNumericDate(issueAt),
+			ID:       id,
 		},
 	}
 
@@ -73,34 +56,40 @@ func NewJWT(id, uid, secrets string, issueAt, expireAt time.Time) (string, error
 	return signedJWT, err
 }
 
-func ParseJWTFromRequest(req *http.Request, accessSecret string) (*UserClaims, error) {
-	bearer, err := GetBearerFromHeader(req.Header.Get("Authorization"))
-	if err != nil {
-		return nil, err
-	}
-
-	return parseJWT(bearer, accessSecret)
-}
-
-func parseJWT(signedJWT, accessSecret string) (*UserClaims, error) {
-	jwtToken, err := jwt.ParseSigned(signedJWT)
+// ParseJWT parses the token string and validates the signature.
+func ParseJWT(jwtStr, accessSecret string) (*JWTClaims, error) {
+	signedJWT, err := jwt.ParseSigned(jwtStr)
 	if err != nil {
 		return nil, ErrInvalidJWT
 	}
 
-	claims := new(UserClaims)
-	if cerr := jwtToken.Claims([]byte(accessSecret), claims); cerr != nil {
+	claims := new(JWTClaims)
+	if err = signedJWT.Claims([]byte(accessSecret), claims); err != nil {
 		return nil, ErrInvalidJWT
 	}
 
 	err = claims.Validate(jwt.Expected{
-		Issuer:  issuer,
-		Subject: subject,
-		Time:    time.Now(),
+		Issuer: issuer,
+		Time:   time.Now(),
 	})
 	if err == jwt.ErrExpired {
 		return nil, ErrExpiredJWT
 	} else if err != nil {
+		return nil, ErrInvalidJWT
+	}
+
+	return claims, nil
+}
+
+// UnsafeParseJWT parses the token string but no signature validation.
+func UnsafeParseJWT(jwtStr string) (*JWTClaims, error) {
+	signedJWT, err := jwt.ParseSigned(jwtStr)
+	if err != nil {
+		return nil, ErrInvalidJWT
+	}
+
+	claims := new(JWTClaims)
+	if err := signedJWT.UnsafeClaimsWithoutVerification(claims); err != nil {
 		return nil, ErrInvalidJWT
 	}
 

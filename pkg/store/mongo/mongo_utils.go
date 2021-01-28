@@ -36,7 +36,7 @@ func containsChildKey(m primitive.M, key string) bool {
 }
 
 // indexExists checks to see if index for `field` in `collection` already exist.
-func indexExists(parentCtx context.Context, collection *mongo.Collection, field string, opts ...*IndexOptions) (bool, error) {
+func indexExists(parent context.Context, collection *mongo.Collection, field string, opts ...*IndexOptions) (bool, error) {
 	var isTTL bool
 	for _, opt := range opts {
 		if opt == nil {
@@ -46,7 +46,7 @@ func indexExists(parentCtx context.Context, collection *mongo.Collection, field 
 		isTTL = opt.isTTL
 	}
 
-	ctx, cancel := context.WithTimeout(parentCtx, atomicTimeout)
+	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
 	defer cancel()
 
 	cursor, err := collection.Indexes().List(ctx)
@@ -75,7 +75,7 @@ func indexExists(parentCtx context.Context, collection *mongo.Collection, field 
 }
 
 // createIndex creates an index associated with `field` in `collection`.
-func createIndex(parentCtx context.Context, collection *mongo.Collection, field string, opts ...*IndexOptions) (string, error) {
+func createIndex(parent context.Context, collection *mongo.Collection, field string, opts ...*IndexOptions) (string, error) {
 	var isTTL bool
 	for _, opt := range opts {
 		if opt == nil {
@@ -85,7 +85,7 @@ func createIndex(parentCtx context.Context, collection *mongo.Collection, field 
 		isTTL = opt.isTTL
 	}
 
-	ok, err := indexExists(parentCtx, collection, field, opts...)
+	ok, err := indexExists(parent, collection, field, opts...)
 	if err != nil {
 		return "", err
 	}
@@ -106,7 +106,7 @@ func createIndex(parentCtx context.Context, collection *mongo.Collection, field 
 		model.Options = options.Index().SetExpireAfterSeconds(0)
 	}
 
-	ctx, cancel := context.WithTimeout(parentCtx, atomicTimeout)
+	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
 	defer cancel()
 
 	ciOpts := options.CreateIndexes().SetMaxTime(indexTimeout)

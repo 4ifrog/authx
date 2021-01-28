@@ -18,6 +18,8 @@ type DataStore interface {
 	// Token
 	SaveAccessToken(parent context.Context, at *models.AccessToken) error
 	SaveRefreshToken(parent context.Context, rt *models.RefreshToken) error
+	DeleteAccessToken(parent context.Context, id string) error
+	DeleteRefreshToken(parent context.Context, id string) error
 
 	// User
 	GetUser(parent context.Context, id string) (*models.User, error)

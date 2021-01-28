@@ -44,8 +44,8 @@ var seedUsers = []struct {
 }
 
 // setupMongo configure the mongo store with indexes, collections, etc.
-func setupMongo(parentCtx context.Context, db *mongo.Database) error {
-	ctx, cancel := context.WithTimeout(parentCtx, atomicTimeout)
+func setupMongo(parent context.Context, db *mongo.Database) error {
+	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
 	defer cancel()
 
 	for _, colName := range []string{atCollection, rtCollection} {
@@ -181,6 +181,28 @@ func (sm *StoreMongo) SaveRefreshToken(parent context.Context, rt *models.Refres
 	}
 
 	return nil
+}
+
+func (sm *StoreMongo) DeleteAccessToken(parent context.Context, id string) error {
+	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
+	defer cancel()
+
+	_, err := sm.db.Collection(atCollection).DeleteOne(ctx, bson.D{
+		{Key: "_id", Value: id},
+	})
+
+	return err
+}
+
+func (sm *StoreMongo) DeleteRefreshToken(parent context.Context, id string) error {
+	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
+	defer cancel()
+
+	_, err := sm.db.Collection(rtCollection).DeleteOne(ctx, bson.D{
+		{Key: "_id", Value: id},
+	})
+
+	return err
 }
 
 func (sm *StoreMongo) getUser(parent context.Context, key, val string) (*models.User, error) {

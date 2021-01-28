@@ -84,7 +84,7 @@ func (sr *StoreRedis) saveToken(parent context.Context, key string, expireIn tim
 func (sr *StoreRedis) SaveAccessToken(parent context.Context, at *models.AccessToken) error {
 	key := fmt.Sprintf("%s:%s", accessTokenPrefix, at.ID)
 	expireIn := time.Until(at.ExpireAt)
-	buffer, err := gobEncodedBytes(at)
+	buffer, err := utils.GOBEncodedBytes(at)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (sr *StoreRedis) SaveRefreshToken(parent context.Context, rt *models.Refres
 	// Refresh token
 	key := fmt.Sprintf("%s:%s", refreshTokenPrefix, rt.ID)
 	expireIn := time.Until(rt.ExpireAt)
-	buffer, err := gobEncodedBytes(rt)
+	buffer, err := utils.GOBEncodedBytes(rt)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (sr *StoreRedis) getUser(parent context.Context, key string) (*models.User,
 	}
 
 	var user models.User
-	err = gobDecodedBytes(buf, &user)
+	err = utils.GOBDecodedBytes(buf, &user)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (sr *StoreRedis) SeedUserData() error {
 			Salt:     salt,
 		}
 
-		buffer, err := gobEncodedBytes(user)
+		buffer, err := utils.GOBEncodedBytes(user)
 		if err != nil {
 			return err
 		}

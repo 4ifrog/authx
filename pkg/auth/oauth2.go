@@ -1,14 +1,18 @@
-package oauth2
+package auth
 
 import (
 	"context"
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 
-	"github.com/cybersamx/authx/pkg/auth"
 	"github.com/cybersamx/authx/pkg/models"
 	"github.com/cybersamx/authx/pkg/store"
+)
+
+const (
+	tokenType = "Bearer"
 )
 
 // NewAccessToken returns an access token object embedding the token in JWT format.
@@ -16,7 +20,7 @@ func NewAccessToken(uid, secrets string, ttl time.Duration) (*models.AccessToken
 	now := time.Now()
 	expireAt := time.Now().Add(ttl)
 	atID := uuid.New().String()
-	jwtToken, err := auth.NewJWT(atID, uid, secrets, now, expireAt)
+	jwtToken, err := NewJWT(atID, uid, secrets, now, expireAt)
 	if err != nil {
 		return nil, err
 	}
@@ -46,26 +50,38 @@ func NewRefreshToken(uid string, ttl time.Duration) *models.RefreshToken {
 	return &rt
 }
 
-func NewOAuthToken(uid, secrets string, accessTTL, refreshTTL time.Duration) (*models.AccessToken, *models.RefreshToken, error) {
+type CreateOAuthTokenParams struct {
+	UID        string
+	Secret     string
+	AccessTTL  time.Duration
+	RefreshTTL time.Duration
+}
+
+func CreateOAuthToken(parent context.Context, ds store.DataStore, uid, secret string, aTTL, rTTL time.Duration) (*oauth2.Token, error) {
 	// Access token
-	at, err := NewAccessToken(uid, secrets, accessTTL)
+	at, err := NewAccessToken(uid, secret, aTTL)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Refresh token
-	rt := NewRefreshToken(uid, refreshTTL)
+	rt := NewRefreshToken(uid, rTTL)
 
-	return at, rt, nil
-}
-
-func SaveOAuthToken(ctx context.Context, ds store.DataStore, at *models.AccessToken, rt *models.RefreshToken) error {
-	if err := ds.SaveAccessToken(ctx, at); err != nil {
-		return err
+	// Save the tokens
+	if err := ds.SaveAccessToken(parent, at); err != nil {
+		return nil, err
 	}
-	if err := ds.SaveRefreshToken(ctx, rt); err != nil {
-		return err
+	if err := ds.SaveRefreshToken(parent, rt); err != nil {
+		return nil, err
 	}
 
-	return nil
+	// OAuth2 token
+	otoken := oauth2.Token{
+		AccessToken:  at.Value,
+		TokenType:    tokenType,
+		RefreshToken: rt.Value,
+		Expiry:       at.ExpireAt,
+	}
+
+	return &otoken, nil
 }

@@ -12,6 +12,7 @@ type Config struct {
 	MongoAddr          string `mapstructure:"mongo-addr"`
 	AccessSecret       string `mapstructure:"access-secret"`
 	RefreshSecret      string `mapstructure:"refresh-secret"`
+	SessionSecret      string `mapstructure:"session-secret"`
 	AccessTTL          int    `mapstructure:"access-ttl"`
 	RefreshTTL         int    `mapstructure:"refresh-ttl"`
 	RefreshTokenRotate bool   `mapstructure:"refresh-token-rotate"`

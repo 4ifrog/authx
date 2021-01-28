@@ -72,7 +72,8 @@ format:
 
 test: start-db-containers
 	@-echo "$(BOLD)$(CYAN)Running tests...$(RESET)"
-	CGO_ENABLED=0 go test $(TEST_SRC) -v -count=1
+	CGO_ENABLED=0 go test $(TEST_SRC) -v -count=1 -coverprofile cover.out
+	go tool cover -func cover.out
 
 ##@ int-containers: Run tests and databases as containers within a netwwork context (useful for CI)
 

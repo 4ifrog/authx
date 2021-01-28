@@ -2,8 +2,9 @@ port: 8080
 debug: true
 redis-addr: localhost:6379
 mongo-addr: mongodb://nobody:secrets@localhost:27017/authx
-access-secret: FJE484rf8234se097  # Don't do this in production
-refresh-secret: XDFER3723d_328fpe # Don't do this in production
+access-secret: FJE484rf8234se097  # This is will change and taken out later
+refresh-secret: XDFER3723d_328fpe # This is will change and taken out later
+session-secret: ieur34285j_ffhvqwer5  # This is will change and taken out later
 access-ttl: 3600      # 1 day in seconds
 refresh-ttl: 108000  # 30 days in seconds
 refresh-token-rotate: false

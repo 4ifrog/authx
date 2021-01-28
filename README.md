@@ -109,4 +109,4 @@ But don't call the script directly, always use the Makefile to run any build/tes
 
 * [Github: MongoDB Go Driver](https://github.com/mongodb/mongo-go-driver)
 * [GoDocs: MongoDB Go Driver](https://pkg.go.dev/go.mongodb.org/mongo-driver@v1.4.4)
-
+* [GoDocs: OAuth2 for Go](https://pkg.go.dev/golang.org/x/oauth2)
