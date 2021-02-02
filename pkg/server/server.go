@@ -7,16 +7,15 @@ import (
 	"github.com/cybersamx/authx/pkg/store"
 )
 
-type RegisterRoutesFunc func(parentGrp *gin.RouterGroup, cfg *config.Config, store store.DataStore)
+type RegisterRoutesFunc func(router *gin.Engine, cfg *config.Config, store store.DataStore)
 
 type Server struct {
-	Router  *gin.Engine
-	rootGrp *gin.RouterGroup
-	cfg     *config.Config
+	Router *gin.Engine
+	cfg    *config.Config
 }
 
 func (s *Server) BindAPIRoutes(fn RegisterRoutesFunc, ds store.DataStore) {
-	fn(s.rootGrp, s.cfg, ds)
+	fn(s.Router, s.cfg, ds)
 }
 
 func New(cfg *config.Config) *Server {
@@ -24,8 +23,6 @@ func New(cfg *config.Config) *Server {
 		Router: gin.New(),
 		cfg:    cfg,
 	}
-
-	s.rootGrp = s.Router.Group("/v1")
 
 	return s
 }

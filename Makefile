@@ -4,6 +4,7 @@ PROJECT_BIN := ./bin
 APP_NAME = authx
 APP_SRC := ./cmd/$(APP_NAME)
 TEST_SRC := ./pkg/...
+WEB_PUBLIC := ./public
 
 # Deployment
 IMAGE_NAME := cybersamx/$(APP_NAME)
@@ -25,7 +26,7 @@ all: run
 
 .PHONY: run
 
-run:
+run: web-build
 	@-echo "$(BOLD)$(BLUE)Running $(APP_NAME)...$(RESET)"
 	@cd $(APP_SRC); go run .
 
@@ -33,11 +34,24 @@ run:
 
 .PHONY: build
 
-build:
+build: web-build
 	@-echo "$(BOLD)$(BLUE)Building $(APP_NAME)...$(RESET)"
 	@mkdir -p $(PROJECT_BIN)
 	CGO_ENABLED=0 go build -o $(PROJECT_BIN) $(APP_SRC)
 	@cp $(APP_SRC)/config.yaml $(PROJECT_BIN)
+	@mkdir -p $(PROJECT_BIN)/$(WEB_PUBLIC)
+	@cp $(WEB_PUBLIC)/index.html $(WEB_PUBLIC)/bundle.js $(WEB_PUBLIC)/bundle.css $(PROJECT_BIN)/public
+
+##@ web-build: Build the web application.
+
+.PHONY: web-build
+
+web-build:
+	@-echo "$(BOLD)$(BLUE)Building web application...$(RESET)"
+	@cd $(WEB_PUBLIC) && \
+	npm install && \
+	npm run build && \
+	cd -
 
 ##@ docker-build: Build Docker image
 
@@ -57,6 +71,9 @@ docker:
 lint:
 	@-echo "$(BOLD)$(BLUE)Linting $(APP_NAME)...$(RESET)"
 	golangci-lint run -v
+	@cd public && \
+	npm run lint && \
+	cd -
 
 ##@ format: Run gofmt
 
@@ -65,6 +82,9 @@ lint:
 format:
 	@-echo "$(BOLD)$(BLUE)Formatting $(APP_NAME)...$(RESET)"
 	gofmt -e -s -w .
+	@cd public && \
+	npm run lint:fix && \
+	cd -
 
 ##@ test: Run tests
 
@@ -107,6 +127,9 @@ clean:
 	@-echo "$(BOLD)$(RED)Removing build cache, test cache and files...$(RESET)"
 	@-rm -rf $(PROJECT_BIN)
 	go clean -testcache
+	@cd public && \
+  npm run clean && \
+  cd -
 
 ##@ help: Help
 
