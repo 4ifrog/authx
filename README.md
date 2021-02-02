@@ -105,6 +105,10 @@ But don't call the script directly, always use the Makefile to run any build/tes
 * `make int-test` - Run integration tests.
 * `make end-db` - Tear down the database containers.
 
+## OAuth2
+
+Here is [an in-depth description of OAuth2](docs).
+
 # Reference
 
 * [Github: MongoDB Go Driver](https://github.com/mongodb/mongo-go-driver)
