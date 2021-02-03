@@ -4,7 +4,8 @@ PROJECT_BIN := ./bin
 APP_NAME = authx
 APP_SRC := ./cmd/$(APP_NAME)
 TEST_SRC := ./pkg/...
-WEB_PUBLIC := ./public
+SRC_STATIC_WEB := ./web_client
+TARGET_STATIC_WEB := ./web_client/build
 
 # Deployment
 IMAGE_NAME := cybersamx/$(APP_NAME)
@@ -39,8 +40,8 @@ build: web-build
 	@mkdir -p $(PROJECT_BIN)
 	CGO_ENABLED=0 go build -o $(PROJECT_BIN) $(APP_SRC)
 	@cp $(APP_SRC)/config.yaml $(PROJECT_BIN)
-	@mkdir -p $(PROJECT_BIN)/$(WEB_PUBLIC)
-	@cp $(WEB_PUBLIC)/index.html $(WEB_PUBLIC)/bundle.js $(WEB_PUBLIC)/bundle.css $(PROJECT_BIN)/public
+	@mkdir -p $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
+	@cp -rf $(SRC_STATIC_WEB)/build/* $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
 
 ##@ web-build: Build the web application.
 
@@ -48,9 +49,19 @@ build: web-build
 
 web-build:
 	@-echo "$(BOLD)$(BLUE)Building web application...$(RESET)"
-	@cd $(WEB_PUBLIC) && \
+	@cd $(SRC_STATIC_WEB) && \
 	npm install && \
 	npm run build && \
+	cd -
+
+##@ web-build: Test the web application.
+
+.PHONY: web-test
+
+web-test:
+	@-echo "$(BOLD)$(BLUE)Building web application...$(RESET)"
+	@cd $(SRC_STATIC_WEB) && \
+	npm test && \
 	cd -
 
 ##@ docker-build: Build Docker image
@@ -71,7 +82,7 @@ docker:
 lint:
 	@-echo "$(BOLD)$(BLUE)Linting $(APP_NAME)...$(RESET)"
 	golangci-lint run -v
-	@cd public && \
+	@cd $(SRC_STATIC_WEB) && \
 	npm run lint && \
 	cd -
 
@@ -82,7 +93,7 @@ lint:
 format:
 	@-echo "$(BOLD)$(BLUE)Formatting $(APP_NAME)...$(RESET)"
 	gofmt -e -s -w .
-	@cd public && \
+	@cd $(SRC_STATIC_WEB) && \
 	npm run lint:fix && \
 	cd -
 
@@ -90,7 +101,7 @@ format:
 
 .PHONY: test
 
-test: start-db-containers
+test: start-db-containers web-test
 	@-echo "$(BOLD)$(CYAN)Running tests...$(RESET)"
 	CGO_ENABLED=0 go test $(TEST_SRC) -v -count=1 -coverprofile cover.out
 	go tool cover -func cover.out
@@ -127,7 +138,7 @@ clean:
 	@-echo "$(BOLD)$(RED)Removing build cache, test cache and files...$(RESET)"
 	@-rm -rf $(PROJECT_BIN)
 	go clean -testcache
-	@cd public && \
+	@cd $(SRC_STATIC_WEB) && \
   npm run clean && \
   cd -
 

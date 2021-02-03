@@ -16,6 +16,7 @@ type Config struct {
 	AccessTTL          int    `mapstructure:"access-ttl"`
 	RefreshTTL         int    `mapstructure:"refresh-ttl"`
 	RefreshTokenRotate bool   `mapstructure:"refresh-token-rotate"`
+	StaticWebDir       string `mapstructure:"static-web-dir"`
 }
 
 func setDefaults(flagset *pflag.FlagSet) {
@@ -28,4 +29,5 @@ func setDefaults(flagset *pflag.FlagSet) {
 	flagset.Int32("access-ttl", 86400, "Access token TTL in seconds")
 	flagset.Int32("refresh-ttl", 604800, "Refresh token TTL in seconds")
 	flagset.Bool("refresh-token-rotate", false, "Issue a new refresh token when renewing an access token")
+	flagset.String("static-web-dir", "./web_client/build", "The directory path of the React app files.")
 }
