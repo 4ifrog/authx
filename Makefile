@@ -48,13 +48,15 @@ build: web-build
 .PHONY: web-install
 
 web-install:
-	npm install
+	@cd $(SRC_STATIC_WEB) && \
+  npm install && \
+  cd -
 
 ##@ web-build: Build the web application.
 
 .PHONY: web-build
 
-web-build: web-install
+web-build:
 	@-echo "$(BOLD)$(BLUE)Building web application...$(RESET)"
 	@cd $(SRC_STATIC_WEB) && \
 	npm run build && \
@@ -64,7 +66,7 @@ web-build: web-install
 
 .PHONY: web-test
 
-web-test: web-install
+web-test:
 	@-echo "$(BOLD)$(BLUE)Building web application...$(RESET)"
 	@cd $(SRC_STATIC_WEB) && \
 	npm test && \
