@@ -43,14 +43,20 @@ build: web-build
 	@mkdir -p $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
 	@cp -rf $(SRC_STATIC_WEB)/build/* $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
 
+##@ web-install: Install the dependencies of the web client.
+
+.PHONY: web-install
+
+web-install:
+	npm install
+
 ##@ web-build: Build the web application.
 
 .PHONY: web-build
 
-web-build:
+web-build: web-install
 	@-echo "$(BOLD)$(BLUE)Building web application...$(RESET)"
 	@cd $(SRC_STATIC_WEB) && \
-	npm install && \
 	npm run build && \
 	cd -
 
@@ -58,7 +64,7 @@ web-build:
 
 .PHONY: web-test
 
-web-test:
+web-test: web-install
 	@-echo "$(BOLD)$(BLUE)Building web application...$(RESET)"
 	@cd $(SRC_STATIC_WEB) && \
 	npm test && \
