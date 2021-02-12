@@ -19,8 +19,9 @@ func (s *Server) BindAPIRoutes(fn RegisterRoutesFunc, ds store.DataStore) {
 }
 
 func New(cfg *config.Config) *Server {
+	gin.SetMode(gin.ReleaseMode)
 	s := &Server{
-		Router: gin.New(),
+		Router: gin.Default(),
 		cfg:    cfg,
 	}
 

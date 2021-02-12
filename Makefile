@@ -35,8 +35,15 @@ run: web-build
 
 .PHONY: build
 
-build: web-build
+build: web-build server-build
 	@-echo "$(BOLD)$(BLUE)Building $(APP_NAME)...$(RESET)"
+
+##@ server-build: Build the api server application.
+
+.PHONY: server-build
+
+server-build:
+	@-echo "$(BOLD)$(BLUE)Building api server application...$(RESET)"
 	@mkdir -p $(PROJECT_BIN)
 	CGO_ENABLED=0 go build -o $(PROJECT_BIN) $(APP_SRC)
 	@cp $(APP_SRC)/config.yaml $(PROJECT_BIN)
@@ -147,8 +154,8 @@ clean:
 	@-rm -rf $(PROJECT_BIN)
 	go clean -testcache
 	@cd $(SRC_STATIC_WEB) && \
-  npm run clean && \
-  cd -
+	npm run clean && \
+	cd -
 
 ##@ help: Help
 

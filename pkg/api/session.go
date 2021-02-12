@@ -18,17 +18,25 @@ type UserSession struct {
 }
 
 const (
-	keySession     = "session"
-	keyPayload     = "payload"
+	cookieName     = "session"
 	cookiePath     = "/"
 	cookieMaxAge   = 14 * 24 * 60 * 60
 	cookieSecure   = false
 	cookieHTTPOnly = false
+	keyUserSession = "payload"
 )
 
 var (
 	ErrSessionSerialization = errors.New("serialization issue with session")
 )
+
+func removeSessionCookie(w http.ResponseWriter) {
+	cookie := &http.Cookie{
+		Name:   cookieName,
+		MaxAge: -1, // Remove cookie now.
+	}
+	http.SetCookie(w, cookie)
+}
 
 //nolint:gochecknoinits
 func init() {
@@ -52,23 +60,24 @@ func NewSessionStore(key string) *SessionStore {
 }
 
 func (ss *SessionStore) SetSession(w http.ResponseWriter, r *http.Request, us *UserSession) error {
-	session, err := ss.store.Get(r, keySession)
+	session, err := ss.store.Get(r, cookieName)
 	if err != nil {
-		return err
+		// If we have trouble getting the cookie, then remove the cookie.
+		removeSessionCookie(w)
 	}
 
-	session.Values[keyPayload] = us
+	session.Values[keyUserSession] = us
 
 	return session.Save(r, w)
 }
 
 func (ss *SessionStore) GetSession(r *http.Request) (*UserSession, error) {
-	session, err := ss.store.Get(r, keySession)
+	session, err := ss.store.Get(r, cookieName)
 	if err != nil {
 		return nil, err
 	}
 
-	obj := session.Values[keyPayload]
+	obj := session.Values[keyUserSession]
 	if obj == nil {
 		return nil, nil
 	}
@@ -81,12 +90,12 @@ func (ss *SessionStore) GetSession(r *http.Request) (*UserSession, error) {
 }
 
 func (ss *SessionStore) ClearSession(w http.ResponseWriter, r *http.Request) error {
-	session, err := ss.store.Get(r, keySession)
+	session, err := ss.store.Get(r, cookieName)
 	if err != nil {
 		return err
 	}
 
-	delete(session.Values, keyPayload)
+	delete(session.Values, keyUserSession)
 
 	return session.Save(r, w)
 }
