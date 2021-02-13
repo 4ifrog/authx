@@ -18,6 +18,18 @@ var (
 	ErrInvalidRequest     = errors.New("invalid request payload")
 )
 
+type UserInfo struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+}
+
+func userToUserInfo(user *models.User) *UserInfo {
+	return &UserInfo{
+		ID:       user.ID,
+		Username: user.Username,
+	}
+}
+
 func SignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// Bind inputs
@@ -92,5 +104,54 @@ func SignOutHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 		}
 
 		ctx.JSON(http.StatusOK, "logout")
+	}
+}
+
+func AccessTokenHandler(cfg *config.Config) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// Get session
+		ss := NewSessionStore(cfg.SessionSecret)
+		session, err := ss.GetSession(ctx.Request)
+		if err != nil {
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		at := session.OAuth2Token.AccessToken
+		claims, err := auth.ParseJWT(at, cfg.AccessSecret)
+		if err != nil {
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		ctx.Set("UserID", claims.UserID)
+		ctx.Next()
+	}
+}
+
+func UserInfoHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		obj, ok := ctx.Get("UserID")
+		if !ok {
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		userID, ok := obj.(string)
+		if !ok {
+			ctx.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		user, err := ds.GetUser(ctx, userID)
+		if err == auth.ErrUserNotFound {
+			_ = ctx.AbortWithError(http.StatusUnauthorized, err)
+			return
+		} else if err != nil {
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		ctx.JSON(http.StatusOK, userToUserInfo(user))
 	}
 }

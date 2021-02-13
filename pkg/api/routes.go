@@ -10,10 +10,15 @@ import (
 
 func GetRoutesFunc() server.RegisterRoutesFunc {
 	return func(router *gin.Engine, cfg *config.Config, ds store.DataStore) {
-		// Auth API.
+		// Auth Public API.
 		apiGrp := router.Group("/v1")
 		apiGrp.POST("/signin", SignInHandler(cfg, ds))
 		apiGrp.GET("/signout", SignOutHandler(cfg, ds))
+
+		// Auth Protected API.
+		protectedGrp := router.Group("/v1")
+		protectedGrp.Use(AccessTokenHandler(cfg))
+		protectedGrp.GET("/userinfo", UserInfoHandler(cfg, ds))
 
 		// React SPA.
 		router.Use(StaticHandler(cfg))
