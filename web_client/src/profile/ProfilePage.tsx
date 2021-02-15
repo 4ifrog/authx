@@ -21,7 +21,7 @@ const useStyles = makeStyles((theme: Theme) => ({
 function ProfilePage() {
   const auth = useAuth();
   const classes = useStyles();
-  const user = auth.getAuthUser();
+  const user = auth.getUser();
 
   return (
     <Page title="Authx Profile">
@@ -30,9 +30,9 @@ function ProfilePage() {
         <Typography variant="h2" className={classes.title}>
           Profile
         </Typography>
-        {user && user.avatar_url && (
+        {user && (
           <Typography variant="h4">
-            <Avatar src={user.avatar_url} alt="Avatar" /> Welcome {` ${user.username}`}
+            {user.avatar_url && <Avatar src={user.avatar_url} alt="Avatar" />} Welcome {` ${user.username}`}
           </Typography>
         )}
         <Typography variant="body2">Profile</Typography>

@@ -1,4 +1,4 @@
-interface AuthToken {
+interface OAuthToken {
   access_token?: string;
   expiry?: Date;
   refresh_token?: string;
@@ -16,4 +16,4 @@ interface User {
   avatar_url?: string;
 }
 
-export type { AuthToken, SignIn, User };
+export type { OAuthToken, SignIn, User };

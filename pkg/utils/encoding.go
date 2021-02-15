@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/gob"
+	"fmt"
 	mathrand "math/rand"
 	"time"
 )
@@ -15,7 +16,7 @@ const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
 func GetRandSecretBytes(n int, alphabet ...byte) ([]byte, error) {
 	buf := make([]byte, n)
 	if _, err := rand.Read(buf); err != nil {
-		return buf, err
+		return buf, fmt.Errorf("can't read from buffer: %v", err)
 	}
 
 	for i, b := range buf {
@@ -44,9 +45,11 @@ func GetRandBytes(n int, alphabet ...byte) []byte {
 
 	for i := range buf {
 		if len(alphabet) == 0 {
-			buf[i] = alphanum[mathrand.Intn(len(alphanum))] //nolint:gosec
+			//nolint:gosec // Using it for non-sensitive data.
+			buf[i] = alphanum[mathrand.Intn(len(alphanum))]
 		} else {
-			buf[i] = alphabet[mathrand.Intn(len(alphabet))] //nolint:gosec
+			//nolint:gosec // Using it for non-sensitive data.
+			buf[i] = alphabet[mathrand.Intn(len(alphabet))]
 		}
 	}
 
@@ -62,7 +65,7 @@ func GOBEncodedBytes(val interface{}) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	if err := enc.Encode(val); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("can't gob encode: %v", err)
 	}
 
 	return &buf, nil
@@ -72,7 +75,7 @@ func GOBDecodedBytes(data []byte, val interface{}) error {
 	buf := bytes.NewBuffer(data)
 	dec := gob.NewDecoder(buf)
 	if err := dec.Decode(val); err != nil {
-		return err
+		return fmt.Errorf("can't gob decode: %v", err)
 	}
 
 	return nil

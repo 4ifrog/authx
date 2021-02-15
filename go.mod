@@ -10,9 +10,12 @@ require (
 	github.com/go-redis/redis/v8 v8.4.8
 	github.com/google/uuid v1.1.4
 	github.com/gorilla/sessions v1.2.1
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/oliamb/cutter v0.2.2
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
+	github.com/stdatiks/jdenticon-go v0.1.0
 	github.com/stretchr/testify v1.6.1
 	go.mongodb.org/mongo-driver v1.4.4
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9

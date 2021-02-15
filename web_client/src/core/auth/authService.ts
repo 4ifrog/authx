@@ -1,11 +1,11 @@
 import axios, { AxiosRequestConfig } from 'axios';
 
-import { AuthToken, SignIn, User } from './authModel';
+import { OAuthToken, SignIn, User } from './authModel';
 
 // A REACT_APP_API_URL value can be injected by webpack during build.
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
-const USER_KEY = 'user';
-const AUTH_TOKEN_KEY = 'authToken';
+const USER_KEY = 'authx.user';
+const OAUTH_TOKEN_KEY = 'authx.oauthToken';
 
 const config: AxiosRequestConfig = {
   responseType: 'json',
@@ -27,7 +27,7 @@ function getUserFromStorage(): User | null {
   return val ? JSON.parse(val) : null;
 }
 
-function hasUserInStorage(): boolean {
+function isUserInStorage(): boolean {
   return !!getUserFromStorage();
 }
 
@@ -39,25 +39,25 @@ function setUserToStorage(user: User) {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
-function getAuthTokenFromStorage(): AuthToken | null {
-  const val = localStorage.getItem(AUTH_TOKEN_KEY);
+function getOAuthTokenFromStorage(): OAuthToken | null {
+  const val = localStorage.getItem(OAUTH_TOKEN_KEY);
   return val ? JSON.parse(val) : null;
 }
 
-function hasAuthTokenInStorage(): boolean {
+function isOAuthTokenInStorage(): boolean {
   return !!getUserFromStorage();
 }
 
-function removeAuthTokenFromStorage() {
-  localStorage.removeItem(AUTH_TOKEN_KEY);
+function removeOAuthTokenFromStorage() {
+  localStorage.removeItem(OAUTH_TOKEN_KEY);
 }
 
-function setAuthTokenToStorage(authToken: AuthToken) {
-  localStorage.setItem(AUTH_TOKEN_KEY, JSON.stringify(authToken));
+function setOAuthTokenToStorage(authToken: OAuthToken) {
+  localStorage.setItem(OAUTH_TOKEN_KEY, JSON.stringify(authToken));
 }
 
-async function signIn(username: string, password: string): Promise<AuthToken | null> {
-  return new Promise<AuthToken | null>((resolve, reject) => {
+async function signIn(username: string, password: string): Promise<OAuthToken | null> {
+  return new Promise<OAuthToken | null>((resolve, reject) => {
     const callAPI = async () => {
       try {
         // Call API.
@@ -68,10 +68,10 @@ async function signIn(username: string, password: string): Promise<AuthToken | n
           username,
           password,
         };
-        const res = await axios.post<AuthToken>(url.toString(), signInData, cfg);
-        const authToken = res.data;
+        const res = await axios.post<OAuthToken>(url.toString(), signInData, cfg);
+        const oauthToken = res.data;
 
-        resolve(authToken);
+        resolve(oauthToken);
       } catch (err) {
         return reject(err);
       }
@@ -81,12 +81,12 @@ async function signIn(username: string, password: string): Promise<AuthToken | n
   });
 }
 
-async function getMe(authToken: AuthToken): Promise<User | null> {
+async function getUserInfo(authToken: OAuthToken): Promise<User | null> {
   return new Promise<User | null>((resolve, reject) => {
     const calledPAI = async () => {
       try {
         const url = new URL(API_BASE_URL);
-        url.pathname = 'cybersamx/react-mui-ts/profile';
+        url.pathname = '/v1/userinfo';
 
         if (!authToken.access_token) {
           return reject('null access token');
@@ -107,14 +107,14 @@ async function getMe(authToken: AuthToken): Promise<User | null> {
 }
 
 export {
-  getMe,
+  getUserInfo,
   getUserFromStorage,
-  hasUserInStorage,
+  isUserInStorage,
   removeUserFromStorage,
-  getAuthTokenFromStorage,
-  hasAuthTokenInStorage,
-  removeAuthTokenFromStorage,
+  getOAuthTokenFromStorage,
+  isOAuthTokenInStorage,
+  removeOAuthTokenFromStorage,
   setUserToStorage,
-  setAuthTokenToStorage,
+  setOAuthTokenToStorage,
   signIn,
 };

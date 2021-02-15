@@ -14,6 +14,7 @@ func GetRoutesFunc() server.RegisterRoutesFunc {
 		apiGrp := router.Group("/v1")
 		apiGrp.POST("/signin", SignInHandler(cfg, ds))
 		apiGrp.GET("/signout", SignOutHandler(cfg, ds))
+		apiGrp.GET("/avatar/:identity", AvatarHandler())
 
 		// Auth Protected API.
 		protectedGrp := router.Group("/v1")
