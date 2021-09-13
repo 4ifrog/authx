@@ -4,6 +4,10 @@ PROJECT_BIN := ./bin
 APP_NAME = authx
 APP_SRC := ./cmd/$(APP_NAME)
 TEST_SRC := ./pkg/...
+SRC_STATIC_WEB := ./pkg/api/web/static
+SRC_TEMPLATES := ./pkg/api/web/templates
+TARGET_STATIC_WEB := ./static
+TARGET_TEMPLATES := ./templates
 
 # Deployment
 IMAGE_NAME := cybersamx/$(APP_NAME)
@@ -25,7 +29,7 @@ all: run
 
 .PHONY: run
 
-run:
+run: copy-files
 	@-echo "$(BOLD)$(BLUE)Running $(APP_NAME)...$(RESET)"
 	@cd $(APP_SRC); go run .
 
@@ -33,17 +37,23 @@ run:
 
 .PHONY: build
 
-build: server-build
+build: copy-files
 	@-echo "$(BOLD)$(BLUE)Building $(APP_NAME)...$(RESET)"
-
-##@ server-build: Build the api server application.
-
-.PHONY: server-build
-
-server-build:
-	@-echo "$(BOLD)$(BLUE)Building api server application...$(RESET)"
 	@mkdir -p $(PROJECT_BIN)
 	CGO_ENABLED=0 go build -o $(PROJECT_BIN) $(APP_SRC)
+
+##@ copy-files: Copy the static directory
+
+.PHONY: copy-files
+
+copy-files:
+	@-echo "$(BOLD)$(BLUE)Copying config files, web assets, and templates...$(RESET)"
+	@-rm -rf $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
+	@-rm -rf $(PROJECT_BIN)/$(TARGET_TEMPLATES)
+	@mkdir -p $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
+	@mkdir -p $(PROJECT_BIN)/$(TARGET_TEMPLATES)
+	@cp -rf $(SRC_STATIC_WEB)/* $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
+	@cp -rf $(SRC_TEMPLATES)/* $(PROJECT_BIN)/$(TARGET_TEMPLATES)
 	@cp $(APP_SRC)/config.yaml $(PROJECT_BIN)
 
 ##@ docker-build: Build Docker image

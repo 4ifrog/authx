@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/cybersamx/authx/pkg/store"
 	"github.com/flowchartsman/retry"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -213,7 +214,9 @@ func (sm *StoreMongo) getUser(parent context.Context, key, val string) (*models.
 	err := sm.db.Collection(userCollection).FindOne(ctx, bson.D{
 		{Key: key, Value: val},
 	}).Decode(&user)
-	if err != nil {
+	if err == mongo.ErrNoDocuments {
+		return nil, store.ErrorNotFound
+	} else if err != nil {
 		return nil, err
 	}
 

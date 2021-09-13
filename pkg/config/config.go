@@ -20,6 +20,7 @@ const (
 
 // Config load order: is: default values > config file > environment variables > CLI arguments
 // For details on load precedence see https://github.com/spf13/viper#why-viper
+
 func (c *Config) BindConfig(v *viper.Viper, set ...BindConfigOpts) {
 	// Config flag
 	v.SetConfigName("config")

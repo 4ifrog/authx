@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0" />
+  <title>Sign-In</title>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" rel="stylesheet" />
+  <link href="//fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+  <link href="//cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/3.6.0/mdb.min.css" rel="stylesheet" />
+</head>
+<body>
+<form action="" method="post">
+  <div class="container mt-5">
+    <div class="row justify-content-center">
+      <div class="col-md-3"></div>
+      <div class="col-md-6">
+        <div class="text-center">
+          <button type="button" class="btn btn-lg btn-danger btn-floating">
+            <i class="fas fa-lock fa-1x"></i>
+          </button>
+        </div>
+        <p class="fs-4 mt-3 text-center">Sign in</p>
+        <div class="form-outline mb-4">
+          <input type="text" id="username" name="username" class="form-control form-control-lg" />
+          <label class="form-label" for="username">Username</label>
+        </div>
+        <div class="form-outline mb-4">
+          <input type="password" id="password" name="password" class="form-control form-control-lg" />
+          <label class="form-label" for="password">Password</label>
+        </div>
+        <div class="form-check text-left">
+          <input class="form-check-input" type="checkbox" value="" id="remember" checked />
+          <label class="form-check-label" for="remember">
+            Remember me
+          </label>
+        </div>
+        <div class="small text-center">
+          {{ .Error }}
+        </div>
+        <button type="submit" class="btn btn-primary btn-block mt-4" style="background-color: #1976d2;">SIGN IN</button>
+        <div class="d-flex mt-3">
+          <div class="text-left flex-fill p-2 small">
+            <a href="#!">Forgot password?</a>
+          </div>
+          <div class="text-right flex p-2 small">
+            <a href="#!">Don't have an account? Sign Up</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3"></div>
+    </div>
+  </div>
+</form>
+<footer class="mt-5 text-center text-muted small">
+  Copyright © Your Website 2021.
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/3.6.0/mdb.min.js"></script>
+</body>
+</html>

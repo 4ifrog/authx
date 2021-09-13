@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrorNotFound = errors.New("user not found")
+	ErrorNotFound = errors.New("object not found")
 )
 
 type DataStore interface {
