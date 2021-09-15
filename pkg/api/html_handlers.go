@@ -23,8 +23,11 @@ import (
 )
 
 const (
-	signinTmplFile = "signin.html"
-	successURI     = "/success"
+	signinTmplFile  = "signin.gohtml"
+	profileTmplFile = "profile.gohtml"
+	err401TmplFile  = "401.gohtml"
+	successURI      = "/profile"
+	rootURI         = "/"
 )
 
 var (
@@ -61,8 +64,8 @@ func renderTemplate(cfg *config.Config, w io.Writer, tmplFile string, data inter
 
 func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		// GET  = displays the sign-in form.
-		// POST = handles the sign-in form submission.
+		// GET  = displays the page.
+		// POST = handles the form submission.
 		if ctx.Request.Method == http.MethodGet {
 			if err := renderTemplate(cfg, ctx.Writer, signinTmplFile, nil); err != nil {
 				http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
@@ -103,6 +106,7 @@ func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 					// Save session to the cookie.
 					session := UserSession{
 						OAuth2Token: *otoken,
+						UserID:      user.ID,
 					}
 					ss := NewSessionStore(cfg.SessionSecret)
 					if err := ss.SetSession(ctx.Writer, ctx.Request, &session); err != nil {
@@ -132,6 +136,57 @@ func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 			// Other methods
 			http.Error(ctx.Writer, fmt.Sprintf("%s not supported", ctx.Request.Method), http.StatusNotImplemented)
 			return
+		}
+	}
+}
+
+func WebProfileOutHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ss := NewSessionStore(cfg.SessionSecret)
+
+		// GET  = displays the page.
+		// POST = handles the form submission.
+		if ctx.Request.Method == http.MethodGet {
+			var content interface{}
+
+			uid, ok := ctx.Get(keyUserID)
+			if !ok {
+				if err := renderTemplate(cfg, ctx.Writer, err401TmplFile, nil); err != nil {
+					http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
+				}
+				return
+			}
+
+			user, err := ds.GetUser(ctx, uid.(string))
+			if err != nil {
+				_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+				return
+			}
+
+			if user == nil {
+				if err := renderTemplate(cfg, ctx.Writer, err401TmplFile, nil); err != nil {
+					http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
+				}
+				return
+			}
+
+			content = &struct {
+				Username string
+			}{
+				Username: user.Username,
+			}
+
+			if err := renderTemplate(cfg, ctx.Writer, profileTmplFile, content); err != nil {
+				http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else if ctx.Request.Method == http.MethodPost {
+			if err := ss.ClearSession(ctx.Writer, ctx.Request); err != nil {
+				fmt.Printf("failed to clear session: %v", err)
+			}
+
+			// Redirect if successful
+			http.Redirect(ctx.Writer, ctx.Request, rootURI, http.StatusFound)
 		}
 	}
 }

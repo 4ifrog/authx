@@ -80,6 +80,8 @@ func BearerAuthHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 		// TODO: Check if user exists in the data store.
 		ctx.Set(keyUserID, at.UserID)
 		ctx.Set(keyAccessTokenID, at.ID)
+
+		ctx.Next()
 	}
 }
 
@@ -90,5 +92,42 @@ func CheckAuthorizationHandler() gin.HandlerFunc {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+
+		ctx.Next()
+	}
+}
+
+func CookieHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// See the user id has already been set.
+		uid := GetUserIDFromContext(ctx)
+		if uid != "" {
+			// Context already has the user id.
+			return
+		}
+
+		// Extract user id and access token from the cookie.
+		ss := NewSessionStore(cfg.SessionSecret)
+		us, err := ss.GetSession(ctx.Request)
+		if err != nil {
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		if us == nil {
+			return
+		}
+
+		// Check that user exists in the data store.
+		user, err := ds.GetUser(ctx, us.UserID)
+		if err != nil {
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		ctx.Set(keyUserID, user.ID)
+		ctx.Set(keyAccessTokenID, us.OAuth2Token.AccessToken)
+
+		ctx.Next()
 	}
 }

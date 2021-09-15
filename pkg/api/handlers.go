@@ -49,6 +49,7 @@ func SignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 		// Save session to the cookie.
 		session := UserSession{
 			OAuth2Token: *otoken,
+			UserID:      user.ID,
 		}
 		ss := NewSessionStore(cfg.SessionSecret)
 		if err := ss.SetSession(ctx.Writer, ctx.Request, &session); err != nil {

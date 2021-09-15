@@ -15,14 +15,15 @@ type SessionStore struct {
 
 type UserSession struct {
 	OAuth2Token oauth2.Token
+	UserID      string
 }
 
 const (
 	cookieName     = "session"
 	cookiePath     = "/"
 	cookieMaxAge   = 14 * 24 * 60 * 60
-	cookieSecure   = false
-	cookieHTTPOnly = false
+	cookieSecure   = true
+	cookieHTTPOnly = true
 	keyUserSession = "payload"
 )
 
@@ -30,7 +31,7 @@ var (
 	ErrSessionSerialization = errors.New("serialization issue with session")
 )
 
-func removeSessionCookie(w http.ResponseWriter) {
+func removeSessionCookie(w http.ResponseWriter, cookieName string) {
 	cookie := &http.Cookie{
 		Name:   cookieName,
 		MaxAge: -1, // Remove cookie now.
@@ -40,6 +41,9 @@ func removeSessionCookie(w http.ResponseWriter) {
 
 //nolint:gochecknoinits
 func init() {
+	// If we assign a complex type to the session store, gorilla/sessions package will
+	// use encoding/gob to serialize/deserialize the value.
+
 	// Register the types to serialize the values to the session store.
 	gob.Register(new(UserSession))
 }
@@ -63,9 +67,10 @@ func (ss *SessionStore) SetSession(w http.ResponseWriter, r *http.Request, us *U
 	session, err := ss.store.Get(r, cookieName)
 	if err != nil {
 		// If we have trouble getting the cookie, then remove the cookie.
-		removeSessionCookie(w)
+		removeSessionCookie(w, cookieName)
 	}
 
+	// We assign a value of complex type
 	session.Values[keyUserSession] = us
 
 	return session.Save(r, w)
@@ -98,4 +103,8 @@ func (ss *SessionStore) ClearSession(w http.ResponseWriter, r *http.Request) err
 	delete(session.Values, keyUserSession)
 
 	return session.Save(r, w)
+}
+
+func (ss *SessionStore) RemoveSession(w http.ResponseWriter) {
+	removeSessionCookie(w, cookieName)
 }
