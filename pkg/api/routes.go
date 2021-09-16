@@ -11,6 +11,9 @@ import (
 
 func GetRoutesFunc() server.RegisterRoutesFunc {
 	return func(router *gin.Engine, cfg *config.Config, ds store.DataStore) {
+		// Initialization.
+		InitHTMLHandlers(cfg)
+
 		// Public web pages.
 		webGrp := router.Group("/")
 		webGrp.GET("/", WebSignInHandler(cfg, ds))

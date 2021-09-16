@@ -3,29 +3,28 @@ package api
 import (
 	"fmt"
 	"html/template"
-	"io"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/cybersamx/authx/pkg/auth"
+	"github.com/cybersamx/authx/pkg/config"
+	"github.com/cybersamx/authx/pkg/models"
+	"github.com/cybersamx/authx/pkg/store"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	ent "github.com/go-playground/validator/v10/translations/en"
-
-	"github.com/cybersamx/authx/pkg/auth"
-	"github.com/cybersamx/authx/pkg/config"
-	"github.com/cybersamx/authx/pkg/models"
-	"github.com/cybersamx/authx/pkg/store"
 )
 
 const (
-	signinTmplFile  = "signin.gohtml"
-	profileTmplFile = "profile.gohtml"
-	err401TmplFile  = "401.gohtml"
+	signinTmplName  = "signin"
+	profileTmplName = "profile"
+	err401TmplName  = "401"
 	successURI      = "/profile"
 	rootURI         = "/"
 )
@@ -33,10 +32,10 @@ const (
 var (
 	uni      *ut.UniversalTranslator
 	validate *validator.Validate
+	tmpl     *template.Template
 )
 
-//nolint:gochecknoinits
-func init() {
+func initValidation() {
 	locale := "en"
 	english := en.New()
 	uni = ut.New(english, english)
@@ -54,12 +53,25 @@ func init() {
 	}
 }
 
-func renderTemplate(cfg *config.Config, w io.Writer, tmplFile string, data interface{}) error {
-	// Load the template file.
-	tmpl := template.Must(template.ParseFiles(fmt.Sprintf("%s/%s", cfg.TemplatesDir, tmplFile)))
+func initTemplates(tmplDir string) {
+	files, err := filepath.Glob(fmt.Sprintf("%s/*.gohtml", tmplDir))
+	if err != nil {
+		log.Panicf("failed to get files in %s: %v", tmplDir, err)
+	}
 
-	// Render the template file.
-	return tmpl.Execute(w, data)
+	// Load the template file.
+	tmpl = template.Must(template.ParseFiles(files...))
+}
+
+func renderTemplate(ctx *gin.Context, tmplName string, data interface{}) {
+	if err := tmpl.ExecuteTemplate(ctx.Writer, tmplName, data); err != nil {
+		_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+	}
+}
+
+func InitHTMLHandlers(cfg *config.Config) {
+	initValidation()
+	initTemplates(cfg.TemplatesDir)
 }
 
 func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
@@ -67,10 +79,7 @@ func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 		// GET  = displays the page.
 		// POST = handles the form submission.
 		if ctx.Request.Method == http.MethodGet {
-			if err := renderTemplate(cfg, ctx.Writer, signinTmplFile, nil); err != nil {
-				http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
-				return
-			}
+			renderTemplate(ctx, signinTmplName, nil)
 		} else if ctx.Request.Method == http.MethodPost {
 			var msg strings.Builder
 
@@ -122,10 +131,7 @@ func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 					Error: msg.String(),
 				}
 
-				if err := renderTemplate(cfg, ctx.Writer, signinTmplFile, content); err != nil {
-					http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
-					return
-				}
+				renderTemplate(ctx, signinTmplName, content)
 
 				return
 			}
@@ -151,9 +157,7 @@ func WebProfileOutHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFun
 
 			uid, ok := ctx.Get(keyUserID)
 			if !ok {
-				if err := renderTemplate(cfg, ctx.Writer, err401TmplFile, nil); err != nil {
-					http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
-				}
+				renderTemplate(ctx, err401TmplName, nil)
 				return
 			}
 
@@ -164,9 +168,7 @@ func WebProfileOutHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFun
 			}
 
 			if user == nil {
-				if err := renderTemplate(cfg, ctx.Writer, err401TmplFile, nil); err != nil {
-					http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
-				}
+				renderTemplate(ctx, err401TmplName, nil)
 				return
 			}
 
@@ -176,10 +178,7 @@ func WebProfileOutHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFun
 				Username: user.Username,
 			}
 
-			if err := renderTemplate(cfg, ctx.Writer, profileTmplFile, content); err != nil {
-				http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
-				return
-			}
+			renderTemplate(ctx, profileTmplName, content)
 		} else if ctx.Request.Method == http.MethodPost {
 			if err := ss.ClearSession(ctx.Writer, ctx.Request); err != nil {
 				fmt.Printf("failed to clear session: %v", err)
