@@ -13,6 +13,7 @@ import (
 	"github.com/cybersamx/authx/pkg/config"
 	"github.com/cybersamx/authx/pkg/models"
 	"github.com/cybersamx/authx/pkg/store"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/locales/en"
@@ -29,57 +30,65 @@ const (
 	rootURI         = "/"
 )
 
-var (
+type HTMLHandlers struct {
 	uni      *ut.UniversalTranslator
 	validate *validator.Validate
 	tmpl     *template.Template
-)
+	cfg      *config.Config
+	ds       store.DataStore
+}
 
-func initValidation() {
+func NewHTMLHandlers(cfg *config.Config, ds store.DataStore) *HTMLHandlers {
+	handlers := new(HTMLHandlers)
+	handlers.initValidation()
+	handlers.initTemplates(cfg.TemplatesDir)
+
+	handlers.cfg = cfg
+	handlers.ds = ds
+
+	return handlers
+}
+
+func (hh *HTMLHandlers) initValidation() {
 	locale := "en"
 	english := en.New()
-	uni = ut.New(english, english)
-	trans, ok := uni.GetTranslator(locale)
+	hh.uni = ut.New(english, english)
+	trans, ok := hh.uni.GetTranslator(locale)
 	if !ok {
 		log.Panicf("failed to get translator for %s locale", locale)
 	}
 
-	validate, ok = binding.Validator.Engine().(*validator.Validate)
+	hh.validate, ok = binding.Validator.Engine().(*validator.Validate)
 	if !ok {
 		log.Panicf("failed to cast to *validator.Validate")
 	}
-	if err := ent.RegisterDefaultTranslations(validate, trans); err != nil {
+	if err := ent.RegisterDefaultTranslations(hh.validate, trans); err != nil {
 		log.Panicf("failed to register validation translator: %v", err)
 	}
 }
 
-func initTemplates(tmplDir string) {
+func (hh *HTMLHandlers) initTemplates(tmplDir string) {
 	files, err := filepath.Glob(fmt.Sprintf("%s/*.gohtml", tmplDir))
 	if err != nil {
 		log.Panicf("failed to get files in %s: %v", tmplDir, err)
 	}
 
 	// Load the template file.
-	tmpl = template.Must(template.ParseFiles(files...))
+	hh.tmpl = template.Must(template.ParseFiles(files...))
 }
 
-func renderTemplate(ctx *gin.Context, tmplName string, data interface{}) {
-	if err := tmpl.ExecuteTemplate(ctx.Writer, tmplName, data); err != nil {
+func (hh *HTMLHandlers) renderTemplate(ctx *gin.Context, tmplName string, data interface{}) {
+	if err := hh.tmpl.ExecuteTemplate(ctx.Writer, tmplName, data); err != nil {
 		_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 	}
 }
 
-func InitHTMLHandlers(cfg *config.Config) {
-	initValidation()
-	initTemplates(cfg.TemplatesDir)
-}
-
-func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
+func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// GET  = displays the page.
 		// POST = handles the form submission.
 		if ctx.Request.Method == http.MethodGet {
-			renderTemplate(ctx, signinTmplName, nil)
+			hh.renderTemplate(ctx, signinTmplName, nil)
 		} else if ctx.Request.Method == http.MethodPost {
 			var msg strings.Builder
 
@@ -90,13 +99,13 @@ func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 					log.Panicf("failed to cast validator.ValidationErrors: %v", err)
 				}
 
-				trans, _ := uni.GetTranslator("en")
+				trans, _ := hh.uni.GetTranslator("en")
 
 				for _, e := range vErrs {
 					msg.WriteString(fmt.Sprintln(e.Translate(trans)))
 				}
 			} else {
-				user, err := auth.Authenticate(ctx, ds, login.Username, login.Password)
+				user, err := auth.Authenticate(ctx, hh.ds, login.Username, login.Password)
 				if err == auth.ErrUserNotFound {
 					msg.WriteString("User not found")
 				} else if err == auth.ErrInvalidCredentials {
@@ -106,9 +115,9 @@ func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 				}
 
 				// Generate oauth2 object and save.
-				aTTL := time.Duration(cfg.AccessTTL) * time.Second
-				rTTL := time.Duration(cfg.RefreshTTL) * time.Second
-				otoken, err := auth.CreateOAuthToken(ctx, ds, user.ID, cfg.AccessSecret, aTTL, rTTL)
+				aTTL := time.Duration(hh.cfg.AccessTTL) * time.Second
+				rTTL := time.Duration(hh.cfg.RefreshTTL) * time.Second
+				otoken, err := auth.CreateOAuthToken(ctx, hh.ds, user.ID, hh.cfg.AccessSecret, aTTL, rTTL)
 				if err != nil {
 					msg.WriteString(fmt.Sprintf("Internal error: %s", err))
 				} else {
@@ -117,7 +126,7 @@ func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 						OAuth2Token: *otoken,
 						UserID:      user.ID,
 					}
-					ss := NewSessionStore(cfg.SessionSecret)
+					ss := NewSessionStore(hh.cfg.SessionSecret)
 					if err := ss.SetSession(ctx.Writer, ctx.Request, &session); err != nil {
 						msg.WriteString(fmt.Sprintf("Internal error: %s", err))
 					}
@@ -131,7 +140,7 @@ func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 					Error: msg.String(),
 				}
 
-				renderTemplate(ctx, signinTmplName, content)
+				hh.renderTemplate(ctx, signinTmplName, content)
 
 				return
 			}
@@ -146,9 +155,9 @@ func WebSignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 	}
 }
 
-func WebProfileOutHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
+func (hh *HTMLHandlers) Profile() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ss := NewSessionStore(cfg.SessionSecret)
+		ss := NewSessionStore(hh.cfg.SessionSecret)
 
 		// GET  = displays the page.
 		// POST = handles the form submission.
@@ -157,18 +166,18 @@ func WebProfileOutHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFun
 
 			uid, ok := ctx.Get(keyUserID)
 			if !ok {
-				renderTemplate(ctx, err401TmplName, nil)
+				hh.renderTemplate(ctx, err401TmplName, nil)
 				return
 			}
 
-			user, err := ds.GetUser(ctx, uid.(string))
+			user, err := hh.ds.GetUser(ctx, uid.(string))
 			if err != nil {
 				_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 				return
 			}
 
 			if user == nil {
-				renderTemplate(ctx, err401TmplName, nil)
+				hh.renderTemplate(ctx, err401TmplName, nil)
 				return
 			}
 
@@ -178,7 +187,7 @@ func WebProfileOutHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFun
 				Username: user.Username,
 			}
 
-			renderTemplate(ctx, profileTmplName, content)
+			hh.renderTemplate(ctx, profileTmplName, content)
 		} else if ctx.Request.Method == http.MethodPost {
 			if err := ss.ClearSession(ctx.Writer, ctx.Request); err != nil {
 				fmt.Printf("failed to clear session: %v", err)

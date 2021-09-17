@@ -36,8 +36,8 @@ func parseBearerFromHeader(header string) (string, error) {
 	return "", ErrInvalidBearer
 }
 
-// GetUserIDFromContext gets the user ID from the context.
-func GetUserIDFromContext(ctx *gin.Context) string {
+// getUserIDFromContext gets the user ID from the context.
+func getUserIDFromContext(ctx *gin.Context) string {
 	userID, ok := ctx.Get(keyUserID)
 	if !ok {
 		return ""
@@ -46,22 +46,26 @@ func GetUserIDFromContext(ctx *gin.Context) string {
 	return userID.(string)
 }
 
-// GetAccessTokenIDFromContext gets the access token ID from the context.
-func GetAccessTokenIDFromContext(ctx *gin.Context) string {
-	atID, ok := ctx.Get(keyAccessTokenID)
-	if !ok {
-		return ""
-	}
-
-	return atID.(string)
+type Middleware struct {
+	cfg *config.Config
+	ds  store.DataStore
 }
 
-// BearerAuthHandler identifies the user of a request by extracting the user id from the JWT of
+func NewMiddleware(cfg *config.Config, ds store.DataStore) *Middleware {
+	mw := new(Middleware)
+
+	mw.cfg = cfg
+	mw.ds = ds
+
+	return mw
+}
+
+// AccessTokenFromBearerAuth identifies the user of a request by extracting the user id from the JWT of
 // the request before setting the user id in the context.
-func BearerAuthHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
+func (m *Middleware) AccessTokenFromBearerAuth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// See the user id has already been set.
-		uid := GetUserIDFromContext(ctx)
+		uid := getUserIDFromContext(ctx)
 		if uid != "" {
 			// Context already has the user id.
 			return
@@ -72,7 +76,7 @@ func BearerAuthHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 		if err != nil {
 			return
 		}
-		at, err := auth.ParseJWT(bearerToken, cfg.AccessSecret)
+		at, err := auth.ParseJWT(bearerToken, m.cfg.AccessSecret)
 		if err != nil || at == nil {
 			return
 		}
@@ -85,29 +89,17 @@ func BearerAuthHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 	}
 }
 
-func CheckAuthorizationHandler() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		at := GetAccessTokenIDFromContext(ctx)
-		if at == "" {
-			ctx.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-
-		ctx.Next()
-	}
-}
-
-func CookieHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
+func (m *Middleware) UserFromCookie() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// See the user id has already been set.
-		uid := GetUserIDFromContext(ctx)
+		uid := getUserIDFromContext(ctx)
 		if uid != "" {
 			// Context already has the user id.
 			return
 		}
 
 		// Extract user id and access token from the cookie.
-		ss := NewSessionStore(cfg.SessionSecret)
+		ss := NewSessionStore(m.cfg.SessionSecret)
 		us, err := ss.GetSession(ctx.Request)
 		if err != nil {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
@@ -119,7 +111,7 @@ func CookieHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 		}
 
 		// Check that user exists in the data store.
-		user, err := ds.GetUser(ctx, us.UserID)
+		user, err := m.ds.GetUser(ctx, us.UserID)
 		if err != nil {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
@@ -128,6 +120,28 @@ func CookieHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 		ctx.Set(keyUserID, user.ID)
 		ctx.Set(keyAccessTokenID, us.OAuth2Token.AccessToken)
 
+		ctx.Next()
+	}
+}
+
+func (m *Middleware) AccessTokenFromCookie() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// Get session
+		ss := NewSessionStore(m.cfg.SessionSecret)
+		session, err := ss.GetSession(ctx.Request)
+		if err != nil {
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		at := session.OAuth2Token.AccessToken
+		claims, err := auth.ParseJWT(at, m.cfg.AccessSecret)
+		if err != nil {
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		ctx.Set("UserID", claims.UserID)
 		ctx.Next()
 	}
 }

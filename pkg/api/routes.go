@@ -12,29 +12,31 @@ import (
 func GetRoutesFunc() server.RegisterRoutesFunc {
 	return func(router *gin.Engine, cfg *config.Config, ds store.DataStore) {
 		// Initialization.
-		InitHTMLHandlers(cfg)
+		htmlHandlers := NewHTMLHandlers(cfg, ds)
+		authHandlers := NewAuthHandlers(cfg, ds)
+		middleware := NewMiddleware(cfg, ds)
 
 		// Public web pages.
 		webGrp := router.Group("/")
-		webGrp.GET("/", WebSignInHandler(cfg, ds))
-		webGrp.POST("/", WebSignInHandler(cfg, ds))
+		webGrp.GET("/", htmlHandlers.SignIn())
+		webGrp.POST("/", htmlHandlers.SignIn())
 
 		// Protected web pages.
-		protectedWebGrp := router.Group("/")
-		protectedWebGrp.Use(CookieHandler(cfg, ds))
-		protectedWebGrp.GET("/profile", WebProfileOutHandler(cfg, ds))
-		protectedWebGrp.POST("/profile", WebProfileOutHandler(cfg, ds))
+		proWebGrp := router.Group("/")
+		proWebGrp.Use(middleware.UserFromCookie())
+		proWebGrp.GET("/profile", htmlHandlers.Profile())
+		proWebGrp.POST("/profile", htmlHandlers.Profile())
 
 		// Public auth api.
 		apiGrp := router.Group("/v1")
-		apiGrp.POST("/signin", SignInHandler(cfg, ds))
-		apiGrp.GET("/signout", SignOutHandler(cfg, ds))
-		apiGrp.GET("/avatar/:identity", AvatarHandler())
+		apiGrp.POST("/signin", authHandlers.SignIn())
+		apiGrp.GET("/signout", authHandlers.SignOut())
+		apiGrp.GET("/avatar/:identity", authHandlers.Avatar())
 
 		// Protected auth api.
-		protectedGrp := router.Group("/v1")
-		protectedGrp.Use(AccessTokenHandler(cfg))
-		protectedGrp.GET("/userinfo", UserInfoHandler(cfg, ds))
+		proAPIGrp := router.Group("/v1")
+		proAPIGrp.Use(middleware.AccessTokenFromCookie())
+		proAPIGrp.GET("/userinfo", authHandlers.UserInfo())
 
 		// Fallback to static content.
 		router.Use(static.Serve("/", static.LocalFile(cfg.StaticWebDir, false)))

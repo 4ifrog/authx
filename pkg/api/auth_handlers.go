@@ -3,8 +3,10 @@ package api
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
+	"github.com/cybersamx/authx/pkg/avatar"
 	"github.com/gin-gonic/gin"
 
 	"github.com/cybersamx/authx/pkg/auth"
@@ -18,7 +20,33 @@ var (
 	ErrInvalidRequest     = errors.New("invalid request payload")
 )
 
-func SignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
+type UserInfo struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+}
+
+type AuthHandlers struct {
+	cfg *config.Config
+	ds  store.DataStore
+}
+
+func NewAuthHandlers(cfg *config.Config, ds store.DataStore) *AuthHandlers {
+	handlers := new(AuthHandlers)
+
+	handlers.cfg = cfg
+	handlers.ds = ds
+
+	return handlers
+}
+
+func (ah *AuthHandlers) userToUserInfo(user *models.User) *UserInfo {
+	return &UserInfo{
+		ID:       user.ID,
+		Username: user.Username,
+	}
+}
+
+func (ah *AuthHandlers) SignIn() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// Bind inputs
 		var login models.User
@@ -28,7 +56,7 @@ func SignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 		}
 
 		// Authenticate
-		user, err := auth.Authenticate(ctx, ds, login.Username, login.Password)
+		user, err := auth.Authenticate(ctx, ah.ds, login.Username, login.Password)
 		if err == auth.ErrUserNotFound || err == auth.ErrInvalidCredentials {
 			_ = ctx.AbortWithError(http.StatusUnauthorized, ErrInvalidRequest)
 			return
@@ -38,9 +66,9 @@ func SignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 		}
 
 		// Generate oauth2 object and save.
-		aTTL := time.Duration(cfg.AccessTTL) * time.Second
-		rTTL := time.Duration(cfg.RefreshTTL) * time.Second
-		otoken, err := auth.CreateOAuthToken(ctx, ds, user.ID, cfg.AccessSecret, aTTL, rTTL)
+		aTTL := time.Duration(ah.cfg.AccessTTL) * time.Second
+		rTTL := time.Duration(ah.cfg.RefreshTTL) * time.Second
+		otoken, err := auth.CreateOAuthToken(ctx, ah.ds, user.ID, ah.cfg.AccessSecret, aTTL, rTTL)
 		if err != nil {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
@@ -51,7 +79,7 @@ func SignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 			OAuth2Token: *otoken,
 			UserID:      user.ID,
 		}
-		ss := NewSessionStore(cfg.SessionSecret)
+		ss := NewSessionStore(ah.cfg.SessionSecret)
 		if err := ss.SetSession(ctx.Writer, ctx.Request, &session); err != nil {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
@@ -61,10 +89,10 @@ func SignInHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 	}
 }
 
-func SignOutHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
+func (ah *AuthHandlers) SignOut() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// Get session
-		ss := NewSessionStore(cfg.SessionSecret)
+		ss := NewSessionStore(ah.cfg.SessionSecret)
 		session, err := ss.GetSession(ctx.Request)
 		if err != nil {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
@@ -81,7 +109,7 @@ func SignOutHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
-		if err := ds.DeleteAccessToken(ctx, claims.ID); err != nil {
+		if err := ah.ds.DeleteAccessToken(ctx, claims.ID); err != nil {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
@@ -96,24 +124,50 @@ func SignOutHandler(cfg *config.Config, ds store.DataStore) gin.HandlerFunc {
 	}
 }
 
-func AccessTokenHandler(cfg *config.Config) gin.HandlerFunc {
+func (ah *AuthHandlers) UserInfo() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		// Get session
-		ss := NewSessionStore(cfg.SessionSecret)
-		session, err := ss.GetSession(ctx.Request)
+		obj, ok := ctx.Get("UserID")
+		if !ok {
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		userID, ok := obj.(string)
+		if !ok {
+			ctx.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		user, err := ah.ds.GetUser(ctx, userID)
+		if err == auth.ErrUserNotFound {
+			_ = ctx.AbortWithError(http.StatusUnauthorized, err)
+			return
+		} else if err != nil {
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		ctx.JSON(http.StatusOK, ah.userToUserInfo(user))
+	}
+}
+
+// AvatarHandler returns identicon avatar icon.
+func (ah *AuthHandlers) Avatar() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		identity := ctx.Param("identity")
+		iconData, err := avatar.GetIdenticon(identity)
 		if err != nil {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
 
-		at := session.OAuth2Token.AccessToken
-		claims, err := auth.ParseJWT(at, cfg.AccessSecret)
+		ctx.Status(http.StatusOK)
+		ctx.Writer.Header().Set("Content-Type", "image/svg+xml")
+		ctx.Writer.Header().Set("Content-Length", strconv.Itoa(len(iconData)))
+		_, err = ctx.Writer.Write(iconData)
 		if err != nil {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
-
-		ctx.Set("UserID", claims.UserID)
-		ctx.Next()
 	}
 }
