@@ -30,6 +30,7 @@ func bootstrap() {
 	cfg := config.New()
 	cfg.BindConfig(v)
 	cfg.LoadConfig(v)
+	cfg.TemplatesDir = "web/templates"
 
 	// Mongo
 	ds := mongo.New(cfg)

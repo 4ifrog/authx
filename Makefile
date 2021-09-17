@@ -4,8 +4,10 @@ PROJECT_BIN := ./bin
 APP_NAME = authx
 APP_SRC := ./cmd/$(APP_NAME)
 TEST_SRC := ./pkg/...
-SRC_STATIC_WEB := ./web_client
-TARGET_STATIC_WEB := ./web_client/build
+SRC_STATIC_WEB := ./pkg/api/web/static
+SRC_TEMPLATES := ./pkg/api/web/templates
+TARGET_STATIC_WEB := ./static
+TARGET_TEMPLATES := ./templates
 
 # Deployment
 IMAGE_NAME := cybersamx/$(APP_NAME)
@@ -27,7 +29,7 @@ all: run
 
 .PHONY: run
 
-run: web-build
+run: copy-files
 	@-echo "$(BOLD)$(BLUE)Running $(APP_NAME)...$(RESET)"
 	@cd $(APP_SRC); go run .
 
@@ -35,49 +37,24 @@ run: web-build
 
 .PHONY: build
 
-build: web-build server-build
+build: copy-files
 	@-echo "$(BOLD)$(BLUE)Building $(APP_NAME)...$(RESET)"
-
-##@ server-build: Build the api server application.
-
-.PHONY: server-build
-
-server-build:
-	@-echo "$(BOLD)$(BLUE)Building api server application...$(RESET)"
 	@mkdir -p $(PROJECT_BIN)
 	CGO_ENABLED=0 go build -o $(PROJECT_BIN) $(APP_SRC)
-	@cp $(APP_SRC)/config.yaml $(PROJECT_BIN)
+
+##@ copy-files: Copy the static directory
+
+.PHONY: copy-files
+
+copy-files:
+	@-echo "$(BOLD)$(BLUE)Copying config files, web assets, and templates...$(RESET)"
+	@-rm -rf $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
+	@-rm -rf $(PROJECT_BIN)/$(TARGET_TEMPLATES)
 	@mkdir -p $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
-	@cp -rf $(SRC_STATIC_WEB)/build/* $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
-
-##@ web-install: Install the dependencies of the web client.
-
-.PHONY: web-install
-
-web-install:
-	@cd $(SRC_STATIC_WEB) && \
-  npm install && \
-  cd -
-
-##@ web-build: Build the web application.
-
-.PHONY: web-build
-
-web-build:
-	@-echo "$(BOLD)$(BLUE)Building web application...$(RESET)"
-	@cd $(SRC_STATIC_WEB) && \
-	npm run build && \
-	cd -
-
-##@ web-build: Test the web application.
-
-.PHONY: web-test
-
-web-test:
-	@-echo "$(BOLD)$(BLUE)Building web application...$(RESET)"
-	@cd $(SRC_STATIC_WEB) && \
-	npm test && \
-	cd -
+	@mkdir -p $(PROJECT_BIN)/$(TARGET_TEMPLATES)
+	@cp -rf $(SRC_STATIC_WEB)/* $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
+	@cp -rf $(SRC_TEMPLATES)/* $(PROJECT_BIN)/$(TARGET_TEMPLATES)
+	@cp $(APP_SRC)/config.yaml $(PROJECT_BIN)
 
 ##@ docker-build: Build Docker image
 
@@ -97,9 +74,6 @@ docker:
 lint:
 	@-echo "$(BOLD)$(BLUE)Linting $(APP_NAME)...$(RESET)"
 	golangci-lint run -v
-	@cd $(SRC_STATIC_WEB) && \
-	npm run lint && \
-	cd -
 
 ##@ format: Run gofmt
 
@@ -108,15 +82,12 @@ lint:
 format:
 	@-echo "$(BOLD)$(BLUE)Formatting $(APP_NAME)...$(RESET)"
 	gofmt -e -s -w .
-	@cd $(SRC_STATIC_WEB) && \
-	npm run lint:fix && \
-	cd -
 
 ##@ test: Run tests
 
 .PHONY: test
 
-test: start-db-containers web-test
+test: start-db-containers
 	@-echo "$(BOLD)$(CYAN)Running tests...$(RESET)"
 	CGO_ENABLED=0 go test $(TEST_SRC) -v -count=1 -coverprofile cover.out
 	go tool cover -func cover.out
@@ -153,9 +124,6 @@ clean:
 	@-echo "$(BOLD)$(RED)Removing build cache, test cache and files...$(RESET)"
 	@-rm -rf $(PROJECT_BIN)
 	go clean -testcache
-	@cd $(SRC_STATIC_WEB) && \
-	npm run clean && \
-	cd -
 
 ##@ help: Help
 

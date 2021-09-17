@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 
 	"github.com/cybersamx/authx/pkg/config"
@@ -10,18 +11,34 @@ import (
 
 func GetRoutesFunc() server.RegisterRoutesFunc {
 	return func(router *gin.Engine, cfg *config.Config, ds store.DataStore) {
-		// Auth Public API.
+		// Initialization.
+		htmlHandlers := NewHTMLHandlers(cfg, ds)
+		authHandlers := NewAuthHandlers(cfg, ds)
+		middleware := NewMiddleware(cfg, ds)
+
+		// Public web pages.
+		webGrp := router.Group("/")
+		webGrp.GET("/", htmlHandlers.SignIn())
+		webGrp.POST("/", htmlHandlers.SignIn())
+
+		// Protected web pages.
+		proWebGrp := router.Group("/")
+		proWebGrp.Use(middleware.UserFromCookie())
+		proWebGrp.GET("/profile", htmlHandlers.Profile())
+		proWebGrp.POST("/profile", htmlHandlers.Profile())
+
+		// Public auth api.
 		apiGrp := router.Group("/v1")
-		apiGrp.POST("/signin", SignInHandler(cfg, ds))
-		apiGrp.GET("/signout", SignOutHandler(cfg, ds))
-		apiGrp.GET("/avatar/:identity", AvatarHandler())
+		apiGrp.POST("/signin", authHandlers.SignIn())
+		apiGrp.GET("/signout", authHandlers.SignOut())
+		apiGrp.GET("/avatar/:identity", authHandlers.Avatar())
 
-		// Auth Protected API.
-		protectedGrp := router.Group("/v1")
-		protectedGrp.Use(AccessTokenHandler(cfg))
-		protectedGrp.GET("/userinfo", UserInfoHandler(cfg, ds))
+		// Protected auth api.
+		proAPIGrp := router.Group("/v1")
+		proAPIGrp.Use(middleware.AccessTokenFromCookie())
+		proAPIGrp.GET("/userinfo", authHandlers.UserInfo())
 
-		// React SPA.
-		router.Use(StaticHandler(cfg))
+		// Fallback to static content.
+		router.Use(static.Serve("/", static.LocalFile(cfg.StaticWebDir, false)))
 	}
 }

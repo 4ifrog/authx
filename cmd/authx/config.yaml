@@ -8,4 +8,5 @@ session-secret: ieur34285j_ffhvqwer5  # This is will change and taken out later
 access-ttl: 3600      # 1 day in seconds
 refresh-ttl: 108000  # 30 days in seconds
 refresh-token-rotate: false
-static-web-dir: web_client/build
+static-web-dir: static
+templates-dir: templates

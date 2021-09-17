@@ -109,6 +109,19 @@ But don't call the script directly, always use the Makefile to run any build/tes
 
 Here is [an in-depth description of OAuth2](docs).
 
+## Troubleshooting
+
+1. **Mongo docker container emits error ` no space left on device`.**
+
+   This issue can be resolved by cleaning the old volumes with the following command:
+
+   ```bash
+   $ docker volume rm $(docker volume ls -qf dangling=true)
+   ```
+
+
+
+
 # Reference
 
 * [Github: MongoDB Go Driver](https://github.com/mongodb/mongo-go-driver)

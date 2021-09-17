@@ -36,14 +36,12 @@ function color_print() {
 cd "${ROOT_DIR}" || exit 1
 
 declare -a COMMANDS=(
-  'make web-install'
   'make format'
   'make lint'
   'make test'
 )
 
 declare -a MESSAGES=(
-  'Install web client dependencies'
   'Format Go files...'
   'Lint Go files...'
   'Run tests...'
