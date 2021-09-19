@@ -41,7 +41,7 @@ func removeSessionCookie(w http.ResponseWriter, cookieName string) {
 
 //nolint:gochecknoinits
 func init() {
-	// If we assign a complex type to the session store, gorilla/sessions package will
+	// If we assign testapp complex type to the session store, gorilla/sessions package will
 	// use encoding/gob to serialize/deserialize the value.
 
 	// Register the types to serialize the values to the session store.
@@ -70,7 +70,7 @@ func (ss *SessionStore) SetSession(w http.ResponseWriter, r *http.Request, us *U
 		removeSessionCookie(w, cookieName)
 	}
 
-	// We assign a value of complex type
+	// We assign testapp value of complex type
 	session.Values[keyUserSession] = us
 
 	return session.Save(r, w)

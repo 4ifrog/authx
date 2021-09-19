@@ -23,19 +23,19 @@ func GetRoutesFunc() server.RegisterRoutesFunc {
 
 		// Protected web pages.
 		proWebGrp := router.Group("/")
-		proWebGrp.Use(middleware.UserFromCookie())
+		proWebGrp.Use(middleware.SetContextFromCookie())
 		proWebGrp.GET("/profile", htmlHandlers.Profile())
 		proWebGrp.POST("/profile", htmlHandlers.Profile())
 
 		// Public auth api.
 		apiGrp := router.Group("/v1")
 		apiGrp.POST("/signin", authHandlers.SignIn())
-		apiGrp.GET("/signout", authHandlers.SignOut())
+		apiGrp.POST("/signout", authHandlers.SignOut())
 		apiGrp.GET("/avatar/:identity", authHandlers.Avatar())
 
 		// Protected auth api.
 		proAPIGrp := router.Group("/v1")
-		proAPIGrp.Use(middleware.AccessTokenFromCookie())
+		proAPIGrp.Use(middleware.SetContextFromBearerAuth())
 		proAPIGrp.GET("/userinfo", authHandlers.UserInfo())
 
 		// Fallback to static content.

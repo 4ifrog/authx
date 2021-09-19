@@ -65,22 +65,11 @@ func (ah *AuthHandlers) SignIn() gin.HandlerFunc {
 			return
 		}
 
-		// Generate oauth2 object and save.
+		// Generate and save oauth2 object, which includes.
 		aTTL := time.Duration(ah.cfg.AccessTTL) * time.Second
 		rTTL := time.Duration(ah.cfg.RefreshTTL) * time.Second
 		otoken, err := auth.CreateOAuthToken(ctx, ah.ds, user.ID, ah.cfg.AccessSecret, aTTL, rTTL)
 		if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
-
-		// Save session to the cookie.
-		session := UserSession{
-			OAuth2Token: *otoken,
-			UserID:      user.ID,
-		}
-		ss := NewSessionStore(ah.cfg.SessionSecret)
-		if err := ss.SetSession(ctx.Writer, ctx.Request, &session); err != nil {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
@@ -91,31 +80,19 @@ func (ah *AuthHandlers) SignIn() gin.HandlerFunc {
 
 func (ah *AuthHandlers) SignOut() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		// Get session
-		ss := NewSessionStore(ah.cfg.SessionSecret)
-		session, err := ss.GetSession(ctx.Request)
-		if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
-		if session == nil {
-			ctx.JSON(http.StatusOK, "logout")
+		atid := getAccessTokenIDFromContext(ctx)
+		if atid == "" {
+			ctx.JSON(http.StatusOK, "no access token")
 			return
 		}
 
 		// Delete the token in the data store.
-		claims, err := auth.UnsafeParseJWT(session.OAuth2Token.AccessToken)
+		claims, err := auth.UnsafeParseJWT(atid)
 		if err != nil {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
 		if err := ah.ds.DeleteAccessToken(ctx, claims.ID); err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
-
-		// Clear session
-		if err := ss.ClearSession(ctx.Writer, ctx.Request); err != nil {
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}

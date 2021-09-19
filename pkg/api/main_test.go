@@ -13,7 +13,7 @@ import (
 	"github.com/cybersamx/authx/pkg/store/mongo"
 )
 
-var a *app.App
+var testapp *app.App
 
 func TestMain(m *testing.M) {
 	bootstrap()
@@ -43,11 +43,11 @@ func bootstrap() {
 	srv.BindAPIRoutes(GetRoutesFunc(), ds)
 
 	// Put everything in an app and run it.
-	a = app.New(srv, ds, cfg)
+	testapp = app.New(srv, ds, cfg)
 }
 
 func teardown() {
 	fmt.Println("Teardown...")
 
-	a.Store.Close()
+	testapp.Store.Close()
 }

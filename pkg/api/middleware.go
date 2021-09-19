@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/cybersamx/authx/pkg/auth"
 	"github.com/gin-gonic/gin"
 
-	"github.com/cybersamx/authx/pkg/auth"
 	"github.com/cybersamx/authx/pkg/config"
 	"github.com/cybersamx/authx/pkg/store"
 )
@@ -46,6 +46,16 @@ func getUserIDFromContext(ctx *gin.Context) string {
 	return userID.(string)
 }
 
+// getAccessTokenIDFromContext gets the access token from the context.
+func getAccessTokenIDFromContext(ctx *gin.Context) string {
+	at, ok := ctx.Get(keyAccessTokenID)
+	if !ok {
+		return ""
+	}
+
+	return at.(string)
+}
+
 type Middleware struct {
 	cfg *config.Config
 	ds  store.DataStore
@@ -60,88 +70,80 @@ func NewMiddleware(cfg *config.Config, ds store.DataStore) *Middleware {
 	return mw
 }
 
-// AccessTokenFromBearerAuth identifies the user of a request by extracting the user id from the JWT of
-// the request before setting the user id in the context.
-func (m *Middleware) AccessTokenFromBearerAuth() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		// See the user id has already been set.
-		uid := getUserIDFromContext(ctx)
-		if uid != "" {
-			// Context already has the user id.
-			return
-		}
+// TODO: Consider refactoring, too many return params.
+type extractFunc func(ctx *gin.Context) (string, string, int, error)
 
-		// Extract the bearer token from the header and parse it as JWT.
-		bearerToken, err := parseBearerFromHeader(ctx.Request.Header.Get("Authorization"))
-		if err != nil {
-			return
-		}
-		at, err := auth.ParseJWT(bearerToken, m.cfg.AccessSecret)
-		if err != nil || at == nil {
-			return
-		}
-
-		// TODO: Check if user exists in the data store.
-		ctx.Set(keyUserID, at.UserID)
-		ctx.Set(keyAccessTokenID, at.ID)
-
+func (m *Middleware) setContextUsing(ctx *gin.Context, extractor extractFunc) {
+	// See the user id has already been set.
+	uid := getUserIDFromContext(ctx)
+	if uid != "" {
+		// Context already has the user id.
 		ctx.Next()
+		return
+	}
+
+	// Extracts user id and access token id using the extractor.
+	uid, atid, status, err := extractor(ctx)
+	if err != nil {
+		_ = ctx.AbortWithError(status, err)
+		return
+	}
+
+	// Check if user is in the data store.
+	_, err = m.ds.GetUser(ctx, uid)
+	if err != nil {
+		_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+		return
+	} else if err == store.ErrorNotFound {
+		_ = ctx.AbortWithError(http.StatusUnauthorized, err)
+		return
+	}
+
+	// Set the access token id and user in the context for other handlers to access.
+	ctx.Set(keyUserID, uid)
+	ctx.Set(keyAccessTokenID, atid)
+
+	ctx.Next()
+}
+
+// SetContextFromBearerAuth extracts the user identity from the bearer token and if it's valid, saves
+// it to the context for other handlers to use.
+func (m *Middleware) SetContextFromBearerAuth() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		fun := func(ctx *gin.Context) (string, string, int, error) {
+			// Extract the bearer token from the header and parse it as JWT.
+			bearerToken, err := parseBearerFromHeader(ctx.Request.Header.Get("Authorization"))
+			if err != nil {
+				return "", "", http.StatusInternalServerError, err
+			}
+			at, err := auth.ParseJWT(bearerToken, m.cfg.AccessSecret)
+			if err == auth.ErrExpiredJWT {
+				return "", "", http.StatusUnauthorized, err
+			} else if err != nil {
+				return "", "", http.StatusInternalServerError, err
+			}
+
+			return at.UserID, at.ID, http.StatusOK, nil
+		}
+
+		m.setContextUsing(ctx, fun)
 	}
 }
 
-func (m *Middleware) UserFromCookie() gin.HandlerFunc {
+// SetContextFromCookie extracts the user identity from the session cookie and if it's valid, saves
+// it to the context for other handlers to use.
+func (m *Middleware) SetContextFromCookie() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		// See the user id has already been set.
-		uid := getUserIDFromContext(ctx)
-		if uid != "" {
-			// Context already has the user id.
-			return
+		fun := func(ctx *gin.Context) (string, string, int, error) {
+			ss := NewSessionStore(m.cfg.SessionSecret)
+			us, err := ss.GetSession(ctx.Request)
+			if err != nil {
+				return "", "", http.StatusInternalServerError, err
+			}
+
+			return us.UserID, us.OAuth2Token.AccessToken, http.StatusInternalServerError, nil
 		}
 
-		// Extract user id and access token from the cookie.
-		ss := NewSessionStore(m.cfg.SessionSecret)
-		us, err := ss.GetSession(ctx.Request)
-		if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
-
-		if us == nil {
-			return
-		}
-
-		// Check that user exists in the data store.
-		user, err := m.ds.GetUser(ctx, us.UserID)
-		if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
-
-		ctx.Set(keyUserID, user.ID)
-		ctx.Set(keyAccessTokenID, us.OAuth2Token.AccessToken)
-
-		ctx.Next()
-	}
-}
-
-func (m *Middleware) AccessTokenFromCookie() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		// Get session
-		ss := NewSessionStore(m.cfg.SessionSecret)
-		session, err := ss.GetSession(ctx.Request)
-		if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
-
-		at := session.OAuth2Token.AccessToken
-		claims, err := auth.ParseJWT(at, m.cfg.AccessSecret)
-		if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
-
-		ctx.Set("UserID", claims.UserID)
-		ctx.Next()
+		m.setContextUsing(ctx, fun)
 	}
 }
