@@ -33,6 +33,14 @@ run: copy-files
 	@-echo "$(BOLD)$(BLUE)Running $(APP_NAME)...$(RESET)"
 	@cd $(APP_SRC); go run .
 
+##@ run: Install dependencies
+
+.PHONY: install
+
+install:
+	@-echo "$(BOLD)$(BLUE)Installing dependencies...$(RESET)"
+	@cd $(APP_SRC); go mod download
+
 ##@ build: Build application
 
 .PHONY: build
@@ -87,7 +95,7 @@ format:
 
 .PHONY: test
 
-test: start-db-containers
+test:
 	@-echo "$(BOLD)$(CYAN)Running tests...$(RESET)"
 	CGO_ENABLED=0 go test $(TEST_SRC) -v -count=1 -coverprofile cover.out
 	go tool cover -func cover.out

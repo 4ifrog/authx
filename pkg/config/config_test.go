@@ -31,6 +31,10 @@ func Unsetenv(t *testing.T, name string) {
 	setenv(t, name, "", false)
 }
 
+func Getenv(t *testing.T, name string) string {
+	return os.Getenv(name)
+}
+
 func setenv(t *testing.T, name, val string, valOK bool) {
 	oldVal, oldOK := os.LookupEnv(name)
 
@@ -69,6 +73,20 @@ redis-addr: redis.net:35380
 }
 
 func Test_DefaultValues(t *testing.T) {
+	// Need to unset os environment variables so that we can test defaults properly as
+	// environment variables takes precedence over defaults.
+	port := Getenv(t, "AX_PORT")
+	debug := Getenv(t, "AX_DEBUG")
+	redisPort := Getenv(t, "AX_REDIS_ADDR")
+	Unsetenv(t, "AX_PORT")
+	Unsetenv(t, "AX_DEBUG")
+	Unsetenv(t, "AX_REDIS_ADDR")
+	defer func() {
+		Setenv(t, "AX_PORT", port)
+		Setenv(t, "AX_DEBUG", debug)
+		Setenv(t, "AX_REDIS_ADDR", redisPort)
+	}()
+
 	viper.Reset()
 
 	cfg := New()
@@ -163,6 +181,15 @@ func Test_Overrides(t *testing.T) {
 
 	cfg := New()
 	v := viper.GetViper()
+
+	// Need to unset os environment variables so that we can test defaults properly as
+	// environment variables takes precedence over defaults.
+	port := Getenv(t, "AX_PORT")
+	redisPort := Getenv(t, "AX_REDIS_ADDR")
+	defer func() {
+		Setenv(t, "AX_PORT", port)
+		Setenv(t, "AX_REDIS_ADDR", redisPort)
+	}()
 
 	writeYAML(t)
 	defer func() {
