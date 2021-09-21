@@ -3,7 +3,7 @@
 ROOT_DIR=$(git rev-parse --show-toplevel)
 DOCKER_COMPOSE_DIR='/docker/docker-compose'
 DOCKER_COMPOSE_FILE='docker-compose.test.yaml'
-DATABASES=('mongo' 'redis')
+DATABASES=('mongo')
 RETRIES=10
 RETRY_WAIT=1
 WAIT=3

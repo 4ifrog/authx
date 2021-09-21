@@ -32,10 +32,11 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile.test
+    image: cybersamx/authx-test
     hostname: authx
     container_name: authx
     ports:
-      - 8080:8080
+      - 5000:5000
     depends_on:
       - mongo
     volumes:

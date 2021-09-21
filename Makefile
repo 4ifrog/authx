@@ -95,34 +95,34 @@ format:
 
 .PHONY: test
 
-test:
+test: start-db-container
 	@-echo "$(BOLD)$(CYAN)Running tests...$(RESET)"
 	CGO_ENABLED=0 go test $(TEST_SRC) -v -count=1 -coverprofile cover.out
 	go tool cover -func cover.out
 
-##@ int-containers: Run tests and databases as containers within a netwwork context (useful for CI)
+##@ test-container: Run tests and databases as containers within a netwwork context (useful for CI)
 
-.PHONY: test-containers
+.PHONY: test-container
 
-test-containers: start-db-containers
+test-containers:
 	@-echo "$(BOLD)$(CYAN)Running tests and dependencies as docker containers...$(RESET)"
 	@docker-compose -f docker/docker-compose.test.yaml up --build --abort-on-container-exit
 
-##@ start-db-containers: Start database containers if they aren't running in the background
+##@ start-db-container: Start database containers if they aren't running in the background
 
-.PHONY: start-db-containers
+.PHONY: start-db-container
 
-start-db-containers: scripts/start-db-containers.sh
-	@-echo "$(BOLD)$(BLUE)Starting database containers...$(RESET)"
-	$(PROJECT_ROOT)/scripts/start-db-containers.sh
+start-db-container: scripts/start-db-container.sh
+		@-echo "$(BOLD)$(BLUE)Starting database container...$(RESET)"
+		$(PROJECT_ROOT)/scripts/start-db-container.sh
 
-##@ end-db-containers: End database containers if they are running in the background
+##@ end-db-container: End database containers if they are running in the background
 
-.PHONY: end-db-containers
+.PHONY: end-db-container
 
-end-db-containers:
-	@-echo "$(BOLD)$(BLUE)Ending database containers...$(RESET)"
-	@docker-compose -f docker/docker-compose.test.yaml down --volumes
+end-db-container:
+		@-echo "$(BOLD)$(BLUE)Ending database container...$(RESET)"
+		@docker-compose -f docker/docker-compose.test.yaml down --volumes
 
 ##@ clean: Clean output files and build cache
 
