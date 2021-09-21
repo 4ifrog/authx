@@ -93,17 +93,13 @@ With the advent of Docker, we get to set up the exact version of the database as
 
 ### Setup Scripts and Makefile
 
-Since we are including the database (running in containers) in both our unit and integration tests, we use [scripts/start-db-containers.sh](scripts/start-db-containers.sh) to orchestrate the following operations:
+Since we are including the database (running in containers) in both our unit and integration tests, we use [scripts/start-db-container.sh](scripts/start-db-container.sh) to orchestrate the following operations prior to running the tests that depend on the databse:
 
 1. Spin up the database containers if they are not running. Skip start if the containers are running.
 1. Wait till the database containers are ready for connection. After starting the container, we still need to wait for the TCP port to become open so that the unit or integration tests can start.
-1. Start the unit or integration tests.
-
-But don't call the script directly, always use the Makefile to run any build/test operations.
 
 * `make test` - Run unit tests.
-* `make int-test` - Run integration tests.
-* `make end-db` - Tear down the database containers.
+* `make end-db-container` - Tear down the database container.
 
 ## OAuth2
 

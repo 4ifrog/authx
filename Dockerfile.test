@@ -5,7 +5,8 @@ FROM golang:1.15.6-alpine3.13 as build
 RUN apk add --no-cache \
     ca-certificates \
     git \
-    make
+    make \
+    bash
 
 # Set the build environments
 WORKDIR /go/src

@@ -18,8 +18,9 @@ const (
 )
 
 var (
-	ErrMissingBearer = errors.New("missing bearer")
-	ErrInvalidBearer = errors.New("bearer has invalid content")
+	ErrMissingBearer        = errors.New("missing bearer")
+	ErrInvalidBearer        = errors.New("bearer has invalid content")
+	ErrMissingSessionCookie = errors.New("missing session cookie")
 )
 
 // parseBearerFromHeader gets the bearer token from the header string.
@@ -141,7 +142,11 @@ func (m *Middleware) SetContextFromCookie() gin.HandlerFunc {
 				return "", "", http.StatusInternalServerError, err
 			}
 
-			return us.UserID, us.OAuth2Token.AccessToken, http.StatusInternalServerError, nil
+			if us == nil {
+				return "", "", http.StatusUnauthorized, ErrMissingSessionCookie
+			}
+
+			return us.UserID, us.OAuth2Token.AccessToken, http.StatusOK, nil
 		}
 
 		m.setContextUsing(ctx, fun)

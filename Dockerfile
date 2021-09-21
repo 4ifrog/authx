@@ -24,6 +24,9 @@ COPY . ./
 RUN mkdir -p bin
 RUN make build
 
+# Copy web files
+RUN make copy-files
+
 #####################
 # --- Final Stage ---
 #####################
@@ -42,6 +45,8 @@ WORKDIR /go/bin
 USER nobody:nobody
 COPY --from=build /go/src/bin/authx ./
 COPY --from=build /go/src/bin/config.yaml ./
+COPY --from=build /go/src/bin/static ./static
+COPY --from=build /go/src/bin/templates ./templates
 
 # Execute
 ENTRYPOINT ["/sbin/tini", "--"]
