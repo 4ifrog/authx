@@ -2,10 +2,8 @@ package api
 
 import (
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,72 +13,35 @@ import (
 	"github.com/cybersamx/authx/pkg/store"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
-	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
-	ent "github.com/go-playground/validator/v10/translations/en"
 )
 
 const (
 	signinTmplName  = "signin"
-	profileTmplName = "profile"
+	profileTmplName = "userinfo"
 	err401TmplName  = "401"
-	successURI      = "/profile"
+	successURI      = "/userinfo"
 	rootURI         = "/"
 )
 
 type HTMLHandlers struct {
-	uni      *ut.UniversalTranslator
+	trans    ut.Translator
 	validate *validator.Validate
-	tmpl     *template.Template
 	cfg      *config.Config
 	ds       store.DataStore
 }
 
-func NewHTMLHandlers(cfg *config.Config, ds store.DataStore) *HTMLHandlers {
+func NewHTMLHandlers(cfg *config.Config, ds store.DataStore,
+	trans ut.Translator, validate *validator.Validate) *HTMLHandlers {
 	handlers := new(HTMLHandlers)
-	handlers.initValidation()
-	handlers.initTemplates(cfg.TemplatesDir)
 
 	handlers.cfg = cfg
 	handlers.ds = ds
+	handlers.trans = trans
+	handlers.validate = validate
 
 	return handlers
-}
-
-func (hh *HTMLHandlers) initValidation() {
-	locale := "en"
-	english := en.New()
-	hh.uni = ut.New(english, english)
-	trans, ok := hh.uni.GetTranslator(locale)
-	if !ok {
-		log.Panicf("failed to get translator for %s locale", locale)
-	}
-
-	hh.validate, ok = binding.Validator.Engine().(*validator.Validate)
-	if !ok {
-		log.Panicf("failed to cast to *validator.Validate")
-	}
-	if err := ent.RegisterDefaultTranslations(hh.validate, trans); err != nil {
-		log.Panicf("failed to register validation translator: %v", err)
-	}
-}
-
-func (hh *HTMLHandlers) initTemplates(tmplDir string) {
-	files, err := filepath.Glob(fmt.Sprintf("%s/*.gohtml", tmplDir))
-	if err != nil {
-		log.Panicf("failed to get files in %s: %v", tmplDir, err)
-	}
-
-	// Load the template file.
-	hh.tmpl = template.Must(template.ParseFiles(files...))
-}
-
-func (hh *HTMLHandlers) renderTemplate(ctx *gin.Context, tmplName string, data interface{}) {
-	if err := hh.tmpl.ExecuteTemplate(ctx.Writer, tmplName, data); err != nil {
-		_ = ctx.AbortWithError(http.StatusInternalServerError, err)
-	}
 }
 
 // TODO: Refactor too many if-else statements.
@@ -90,7 +51,7 @@ func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 		// GET  = displays the page.
 		// POST = handles the form submission.
 		if ctx.Request.Method == http.MethodGet {
-			hh.renderTemplate(ctx, signinTmplName, nil)
+			ctx.HTML(http.StatusOK, signinTmplName, nil)
 		} else if ctx.Request.Method == http.MethodPost {
 			var msg strings.Builder
 
@@ -101,10 +62,8 @@ func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 					log.Panicf("failed to cast validator.ValidationErrors: %v", err)
 				}
 
-				trans, _ := hh.uni.GetTranslator("en")
-
 				for _, e := range vErrs {
-					msg.WriteString(fmt.Sprintln(e.Translate(trans)))
+					msg.WriteString(fmt.Sprintln(e.Translate(hh.trans)))
 				}
 			} else {
 				user, err := auth.Authenticate(ctx, hh.ds, login.Username, login.Password)
@@ -138,13 +97,11 @@ func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 			}
 
 			if msg.Len() > 0 {
-				content := &struct {
-					Error string
-				}{
-					Error: msg.String(),
+				content := gin.H{
+					"Error": msg.String(),
 				}
 
-				hh.renderTemplate(ctx, signinTmplName, content)
+				ctx.HTML(http.StatusOK, signinTmplName, content)
 
 				return
 			}
@@ -159,18 +116,16 @@ func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 	}
 }
 
-func (hh *HTMLHandlers) Profile() gin.HandlerFunc {
+func (hh *HTMLHandlers) UserInfo() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ss := NewCookieStore(hh.cfg.SessionSecret)
 
 		// GET  = displays the page.
 		// POST = handles the form submission.
 		if ctx.Request.Method == http.MethodGet {
-			var content interface{}
-
 			uid, ok := ctx.Get(keyUserID)
 			if !ok {
-				hh.renderTemplate(ctx, err401TmplName, nil)
+				ctx.HTML(http.StatusOK, err401TmplName, nil)
 				return
 			}
 
@@ -181,17 +136,15 @@ func (hh *HTMLHandlers) Profile() gin.HandlerFunc {
 			}
 
 			if user == nil {
-				hh.renderTemplate(ctx, err401TmplName, nil)
+				ctx.HTML(http.StatusOK, err401TmplName, nil)
 				return
 			}
 
-			content = &struct {
-				Username string
-			}{
-				Username: user.Username,
+			content := gin.H{
+				"Username": user.Username,
 			}
 
-			hh.renderTemplate(ctx, profileTmplName, content)
+			ctx.HTML(http.StatusOK, profileTmplName, content)
 		} else if ctx.Request.Method == http.MethodPost {
 			if err := ss.ClearSessionToken(ctx.Writer, ctx.Request); err != nil {
 				fmt.Printf("failed to clear session: %v", err)

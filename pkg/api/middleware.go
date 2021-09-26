@@ -15,6 +15,7 @@ import (
 const (
 	keyUserID        = "UserID"
 	keyAccessTokenID = "AccessTokenID"
+	keyStatusCode    = "StatusCode"
 )
 
 var (
@@ -86,24 +87,26 @@ func (m *Middleware) setContextUsing(ctx *gin.Context, extractor extractFunc) {
 	// Extracts user id and access token id using the extractor.
 	uid, atid, status, err := extractor(ctx)
 	if err != nil {
-		_ = ctx.AbortWithError(status, err)
+		ctx.Set(keyStatusCode, status)
+		ctx.Next()
 		return
 	}
 
 	// Check if user is in the data store.
 	_, err = m.ds.GetUser(ctx, uid)
-	if err != nil {
-		_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+	if err == store.ErrorNotFound {
+		ctx.Set(keyStatusCode, http.StatusUnauthorized)
+		ctx.Next()
 		return
-	} else if err == store.ErrorNotFound {
-		_ = ctx.AbortWithError(http.StatusUnauthorized, err)
+	} else if err != nil {
+		ctx.Set(keyStatusCode, http.StatusInternalServerError)
+		ctx.Next()
 		return
 	}
 
 	// Set the access token id and user in the context for other handlers to access.
 	ctx.Set(keyUserID, uid)
 	ctx.Set(keyAccessTokenID, atid)
-
 	ctx.Next()
 }
 
@@ -115,7 +118,7 @@ func (m *Middleware) SetContextFromBearerAuth() gin.HandlerFunc {
 			// Extract the bearer token from the header and parse it as JWT.
 			bearerToken, err := parseBearerFromHeader(ctx.Request.Header.Get("Authorization"))
 			if err != nil {
-				return "", "", http.StatusInternalServerError, err
+				return "", "", http.StatusUnauthorized, err
 			}
 			at, err := auth.ParseJWT(bearerToken, m.cfg.AccessSecret)
 			if err == auth.ErrExpiredJWT {

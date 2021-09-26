@@ -12,20 +12,29 @@ import (
 func GetRoutesFunc() server.RegisterRoutesFunc {
 	return func(router *gin.Engine, cfg *config.Config, ds store.DataStore) {
 		// Initialization.
-		htmlHandlers := NewHTMLHandlers(cfg, ds)
+		tmpl := NewTemplate(cfg.TemplatesDir)
+		trans := NewEnglishTranslator()
+		validate := NewValidate(trans)
+
+		router.SetHTMLTemplate(tmpl)
+
+		htmlHandlers := NewHTMLHandlers(cfg, ds, trans, validate)
 		authHandlers := NewAuthHandlers(cfg, ds)
+		errHandlers := NewErrorHandlers(cfg)
 		middleware := NewMiddleware(cfg, ds)
 
 		// Public web pages.
 		webGrp := router.Group("/")
 		webGrp.GET("/", htmlHandlers.SignIn())
 		webGrp.POST("/", htmlHandlers.SignIn())
+		webGrp.GET(errorsPath, errHandlers.Error())
 
 		// Protected web pages.
 		proWebGrp := router.Group("/")
 		proWebGrp.Use(middleware.SetContextFromCookie())
-		proWebGrp.GET("/profile", htmlHandlers.Profile())
-		proWebGrp.POST("/profile", htmlHandlers.Profile())
+		proWebGrp.Use(errHandlers.RedirectToErrorPage())
+		proWebGrp.GET("/userinfo", htmlHandlers.UserInfo())
+		proWebGrp.POST("/userinfo", htmlHandlers.UserInfo())
 
 		// Public auth api.
 		apiGrp := router.Group("/v1")
@@ -36,6 +45,7 @@ func GetRoutesFunc() server.RegisterRoutesFunc {
 		// Protected auth api.
 		proAPIGrp := router.Group("/v1")
 		proAPIGrp.Use(middleware.SetContextFromBearerAuth())
+		proAPIGrp.Use(errHandlers.AbortWithError())
 		proAPIGrp.GET("/userinfo", authHandlers.UserInfo())
 
 		// Fallback to static content.

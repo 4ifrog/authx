@@ -9,10 +9,12 @@ describe('The app error handling', () => {
     // No cookies so launch a new page as incognito.
     const ctx = await browser.createIncognitoBrowserContext();
     const incogPage = await ctx.newPage();
-    const res = await incogPage.goto(`${hostUrl}/profile`, { waitUntil: 'networkidle2' });
+    const res = await incogPage.goto(`${hostUrl}/userinfo`, { waitUntil: 'networkidle2' });
 
-    // Test status code.
+    // Test error page.
     await expect(res.status()).toBe(401);
+    await expect(incogPage.title()).resolves.toMatch('401');
+    await expect(incogPage).toMatchElement('p#status', { text: /401/ });
 
     // Clear history.
     await ctx.close();

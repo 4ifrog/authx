@@ -26,7 +26,8 @@ describe('The sign-in flow', () => {
     await expectSignIn;
     await expect(page).toClick('button#btn-signin', { delay: 25 });
     await waitForNav;
-    await expect(page.url()).toContain('/profile');
+    await expect(page.url()).toContain('/userinfo');
+    await expect(page.title()).resolves.toMatch('User Info');
 
     // Sign out.
     await expect(page).toClick('button#btn-signout', { delay: 25 });
