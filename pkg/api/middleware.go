@@ -136,9 +136,11 @@ func (m *Middleware) SetContextFromBearerAuth() gin.HandlerFunc {
 func (m *Middleware) SetContextFromCookie() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		fun := func(ctx *gin.Context) (string, string, int, error) {
-			ss := NewSessionStore(m.cfg.SessionSecret)
-			us, err := ss.GetSession(ctx.Request)
-			if err != nil {
+			ss := NewCookieStore(m.cfg.SessionSecret)
+			us, err := ss.GetSessionToken(ctx.Request)
+			if err == ErrSessionTokenNotFound {
+				return "", "", http.StatusUnauthorized, ErrMissingSessionCookie
+			} else if err != nil {
 				return "", "", http.StatusInternalServerError, err
 			}
 
@@ -146,7 +148,7 @@ func (m *Middleware) SetContextFromCookie() gin.HandlerFunc {
 				return "", "", http.StatusUnauthorized, ErrMissingSessionCookie
 			}
 
-			return us.UserID, us.OAuth2Token.AccessToken, http.StatusOK, nil
+			return us.UserID, us.Token.AccessToken, http.StatusOK, nil
 		}
 
 		m.setContextUsing(ctx, fun)
