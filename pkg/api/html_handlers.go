@@ -124,7 +124,6 @@ func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 					if err != nil {
 						msg.WriteString(fmt.Sprintf("Internal error: %s", err))
 					} else {
-<<<<<<< HEAD
 						// Save token to the cookie.
 						token := SessionToken{
 							Token:  *otoken,
@@ -132,15 +131,6 @@ func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 						}
 						ss := NewCookieStore(hh.cfg.SessionSecret)
 						if err := ss.SetSessionToken(ctx.Writer, ctx.Request, &token); err != nil {
-=======
-						// Save session to the cookie.
-						session := UserSession{
-							OAuth2Token: *otoken,
-							UserID:      user.ID,
-						}
-						ss := NewSessionStore(hh.cfg.SessionSecret)
-						if err := ss.SetSession(ctx.Writer, ctx.Request, &session); err != nil {
->>>>>>> 83554d6... Make e2e tests run in Docker
 							msg.WriteString(fmt.Sprintf("Internal error: %s", err))
 						}
 					}

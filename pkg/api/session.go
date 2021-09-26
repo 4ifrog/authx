@@ -22,22 +22,12 @@ type SessionToken struct {
 // TODO: For some reason setting cookieSecure true is causing headless e2e tests in Docker container to fail. Add TLS?
 
 const (
-<<<<<<< HEAD
 	cookieName      = "session"
 	cookiePath      = "/"
 	cookieMaxAge    = 14 * 24 * 60 * 60 // 14 days
 	cookieSecure    = false
 	cookieHTTPOnly  = true
 	keySessionToken = "session-token"
-=======
-	cookieName     = "session"
-	cookiePath     = "/"
-	cookieMaxAge   = 14 * 24 * 60 * 60
-	cookieSecure   = false
-	cookieHTTPOnly = true
-	cookieSameSite = http.SameSiteDefaultMode
-	keyUserSession = "payload"
->>>>>>> 83554d6... Make e2e tests run in Docker
 )
 
 var (
@@ -61,10 +51,6 @@ func NewCookieStore(key string) *CookieStore {
 		MaxAge:   cookieMaxAge,
 		Secure:   cookieSecure,
 		HttpOnly: cookieHTTPOnly,
-<<<<<<< HEAD
-=======
-		SameSite: cookieSameSite,
->>>>>>> 83554d6... Make e2e tests run in Docker
 	}
 
 	return &CookieStore{
@@ -72,20 +58,11 @@ func NewCookieStore(key string) *CookieStore {
 	}
 }
 
-<<<<<<< HEAD
 func (cs *CookieStore) SetSessionToken(w http.ResponseWriter, r *http.Request, ut *SessionToken) error {
 	// store.Get will always return a session (cookie) even if it's not found.
 	session, err := cs.store.Get(r, cookieName)
 	if err != nil {
 		return err
-=======
-func (ss *SessionStore) SetSession(w http.ResponseWriter, r *http.Request, us *UserSession) error {
-	session, err := ss.store.Get(r, cookieName)
-	if err != nil || session == nil {
-		// If we have trouble getting the cookie, then remove the cookie.
-		// TODO: Rename this function.
-		removeSessionCookie(w, cookieName)
->>>>>>> 83554d6... Make e2e tests run in Docker
 	}
 
 	// Save token.
