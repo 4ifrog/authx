@@ -15,7 +15,6 @@ import (
 const (
 	keyUserID        = "UserID"
 	keyAccessTokenID = "AccessTokenID"
-	keyStatusCode    = "StatusCode"
 )
 
 var (
@@ -85,22 +84,19 @@ func (m *Middleware) setContextUsing(ctx *gin.Context, extractor extractFunc) {
 	}
 
 	// Extracts user id and access token id using the extractor.
-	uid, atid, status, err := extractor(ctx)
+	uid, atid, code, err := extractor(ctx)
 	if err != nil {
-		ctx.Set(keyStatusCode, status)
-		ctx.Next()
+		setErrorStatus(ctx, err, code)
 		return
 	}
 
 	// Check if user is in the data store.
 	_, err = m.ds.GetUser(ctx, uid)
 	if err == store.ErrorNotFound {
-		ctx.Set(keyStatusCode, http.StatusUnauthorized)
-		ctx.Next()
+		setErrorStatus(ctx, err, http.StatusUnauthorized)
 		return
 	} else if err != nil {
-		ctx.Set(keyStatusCode, http.StatusInternalServerError)
-		ctx.Next()
+		setErrorStatus(ctx, err, http.StatusInternalServerError)
 		return
 	}
 

@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net/http"
 	"path/filepath"
+	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -45,4 +48,24 @@ func NewTemplate(tmplDir string) *template.Template {
 
 	// Load the template file.
 	return template.Must(template.ParseFiles(files...))
+}
+
+func setErrorStatus(ctx *gin.Context, err error, code int) {
+	ctx.Status(code)
+	_ = ctx.Error(err)
+	ctx.Next()
+}
+
+func isAcceptingHTML(r *http.Request) bool {
+	accepts := r.Header["Accept"]
+	for _, accept := range accepts {
+		for _, mime := range strings.Split(accept, ",") {
+			switch mime {
+			case "text/html", "application/xhtml+xml", "application/xml":
+				return true
+			}
+		}
+	}
+
+	return false
 }

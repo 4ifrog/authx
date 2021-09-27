@@ -16,23 +16,23 @@ func GetRoutesFunc() server.RegisterRoutesFunc {
 		trans := NewEnglishTranslator()
 		validate := NewValidate(trans)
 
-		router.SetHTMLTemplate(tmpl)
-
 		htmlHandlers := NewHTMLHandlers(cfg, ds, trans, validate)
 		authHandlers := NewAuthHandlers(cfg, ds)
 		errHandlers := NewErrorHandlers(cfg)
 		middleware := NewMiddleware(cfg, ds)
 
+		router.SetHTMLTemplate(tmpl)
+		router.Use(errHandlers.ErrorResponse())
+
 		// Public web pages.
 		webGrp := router.Group("/")
 		webGrp.GET("/", htmlHandlers.SignIn())
 		webGrp.POST("/", htmlHandlers.SignIn())
-		webGrp.GET(errorsPath, errHandlers.Error())
+		webGrp.GET(errorsPath, errHandlers.ErrorHTML())
 
 		// Protected web pages.
 		proWebGrp := router.Group("/")
 		proWebGrp.Use(middleware.SetContextFromCookie())
-		proWebGrp.Use(errHandlers.RedirectToErrorPage())
 		proWebGrp.GET("/userinfo", htmlHandlers.UserInfo())
 		proWebGrp.POST("/userinfo", htmlHandlers.UserInfo())
 
@@ -45,7 +45,6 @@ func GetRoutesFunc() server.RegisterRoutesFunc {
 		// Protected auth api.
 		proAPIGrp := router.Group("/v1")
 		proAPIGrp.Use(middleware.SetContextFromBearerAuth())
-		proAPIGrp.Use(errHandlers.AbortWithError())
 		proAPIGrp.GET("/userinfo", authHandlers.UserInfo())
 
 		// Fallback to static content.

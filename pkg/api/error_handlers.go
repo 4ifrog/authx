@@ -12,11 +12,11 @@ import (
 
 const (
 	errorsPath       = "/errors/:code"
-	errorsPathFormat = "/errors/%v"
+	errorsPathFormat = "/errors/%d"
 )
 
 var (
-	statusInternalErrorContent = gin.H{
+	statusInternalServerContent = gin.H{
 		"Code":       http.StatusInternalServerError,
 		"StatusText": http.StatusText(http.StatusInternalServerError),
 	}
@@ -34,60 +34,32 @@ func NewErrorHandlers(cfg *config.Config) *ErrorHandlers {
 	return handlers
 }
 
-func (eh *ErrorHandlers) AbortWithError() gin.HandlerFunc {
+func (eh *ErrorHandlers) ErrorResponse() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		val, found := ctx.Get(keyStatusCode)
-		if found {
-			code, ok := val.(int)
-			if !ok {
-				_ = ctx.AbortWithError(http.StatusInternalServerError, fmt.Errorf("can't cast status code"))
-				return
-			}
+		// Run other handlers in the chain first.
+		ctx.Next()
 
-			if code >= http.StatusOK && code < http.StatusMultipleChoices {
-				// Ignore 2xx status code.
-				ctx.Next()
-				return
-			}
-
-			ctx.AbortWithStatus(code)
+		// Ignore 2xx and 3xx status code.
+		code := ctx.Writer.Status()
+		if code >= http.StatusOK && code < http.StatusBadRequest {
+			return
 		}
 
-		ctx.Next()
-	}
-}
-
-func (eh *ErrorHandlers) RedirectToErrorPage() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		val, found := ctx.Get(keyStatusCode)
-		if found {
-			code, ok := val.(int)
-			if !ok {
-				ctx.Redirect(http.StatusMovedPermanently, fmt.Sprintf(errorsPathFormat, http.StatusInternalServerError))
-				ctx.Abort()
-				return
-			}
-
-			if code >= http.StatusOK && code < http.StatusMultipleChoices {
-				// Ignore 2xx status code.
-				ctx.Next()
-				return
-			}
-
-			ctx.Redirect(http.StatusMovedPermanently, fmt.Sprintf(errorsPathFormat, val))
+		if isAcceptingHTML(ctx.Request) {
+			ctx.Redirect(http.StatusMovedPermanently, fmt.Sprintf(errorsPathFormat, code))
 			ctx.Abort()
 			return
 		}
 
-		ctx.Next()
+		ctx.AbortWithStatus(code)
 	}
 }
 
-func (eh *ErrorHandlers) Error() gin.HandlerFunc {
+func (eh *ErrorHandlers) ErrorHTML() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		code, err := strconv.Atoi(ctx.Param("code"))
 		if err != nil {
-			ctx.HTML(http.StatusInternalServerError, "error", statusInternalErrorContent)
+			ctx.HTML(http.StatusInternalServerError, "error", statusInternalServerContent)
 			ctx.Abort()
 			return
 		}
@@ -97,6 +69,6 @@ func (eh *ErrorHandlers) Error() gin.HandlerFunc {
 			"StatusText": http.StatusText(code),
 		}
 
-		ctx.HTML(http.StatusUnauthorized, "error", content)
+		ctx.HTML(code, "error", content)
 	}
 }

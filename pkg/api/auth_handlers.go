@@ -51,17 +51,17 @@ func (ah *AuthHandlers) SignIn() gin.HandlerFunc {
 		// Bind inputs
 		var login models.User
 		if err := ctx.ShouldBindJSON(&login); err != nil {
-			_ = ctx.AbortWithError(http.StatusUnprocessableEntity, ErrInvalidCredentials)
+			setErrorStatus(ctx, ErrInvalidCredentials, http.StatusUnprocessableEntity)
 			return
 		}
 
 		// Authenticate
 		user, err := auth.Authenticate(ctx, ah.ds, login.Username, login.Password)
 		if err == auth.ErrUserNotFound || err == auth.ErrInvalidCredentials {
-			_ = ctx.AbortWithError(http.StatusUnauthorized, ErrInvalidRequest)
+			setErrorStatus(ctx, ErrUserNotFound, http.StatusUnauthorized)
 			return
 		} else if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			setErrorStatus(ctx, err, http.StatusInternalServerError)
 			return
 		}
 
@@ -70,7 +70,7 @@ func (ah *AuthHandlers) SignIn() gin.HandlerFunc {
 		rTTL := time.Duration(ah.cfg.RefreshTTL) * time.Second
 		otoken, err := auth.CreateOAuthToken(ctx, ah.ds, user.ID, ah.cfg.AccessSecret, aTTL, rTTL)
 		if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			setErrorStatus(ctx, err, http.StatusInternalServerError)
 			return
 		}
 
@@ -89,11 +89,11 @@ func (ah *AuthHandlers) SignOut() gin.HandlerFunc {
 		// Delete the token in the data store.
 		claims, err := auth.UnsafeParseJWT(atid)
 		if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			setErrorStatus(ctx, err, http.StatusInternalServerError)
 			return
 		}
 		if err := ah.ds.DeleteAccessToken(ctx, claims.ID); err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			setErrorStatus(ctx, err, http.StatusInternalServerError)
 			return
 		}
 
@@ -103,24 +103,24 @@ func (ah *AuthHandlers) SignOut() gin.HandlerFunc {
 
 func (ah *AuthHandlers) UserInfo() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		obj, ok := ctx.Get("UserID")
+		val, ok := ctx.Get(keyUserID)
 		if !ok {
-			ctx.AbortWithStatus(http.StatusUnauthorized)
+			setErrorStatus(ctx, ErrUserNotFound, http.StatusUnauthorized)
 			return
 		}
 
-		userID, ok := obj.(string)
+		uid, ok := val.(string)
 		if !ok {
-			ctx.AbortWithStatus(http.StatusInternalServerError)
+			setErrorStatus(ctx, ErrUserIDCast, http.StatusInternalServerError)
 			return
 		}
 
-		user, err := ah.ds.GetUser(ctx, userID)
+		user, err := ah.ds.GetUser(ctx, uid)
 		if err == auth.ErrUserNotFound {
-			_ = ctx.AbortWithError(http.StatusUnauthorized, err)
+			setErrorStatus(ctx, ErrUserNotFound, http.StatusUnauthorized)
 			return
 		} else if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			setErrorStatus(ctx, err, http.StatusInternalServerError)
 			return
 		}
 
@@ -134,7 +134,7 @@ func (ah *AuthHandlers) Avatar() gin.HandlerFunc {
 		identity := ctx.Param("identity")
 		iconData, err := avatar.GetIdenticon(identity)
 		if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			setErrorStatus(ctx, err, http.StatusInternalServerError)
 			return
 		}
 
@@ -143,7 +143,7 @@ func (ah *AuthHandlers) Avatar() gin.HandlerFunc {
 		ctx.Writer.Header().Set("Content-Length", strconv.Itoa(len(iconData)))
 		_, err = ctx.Writer.Write(iconData)
 		if err != nil {
-			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			setErrorStatus(ctx, err, http.StatusInternalServerError)
 			return
 		}
 	}

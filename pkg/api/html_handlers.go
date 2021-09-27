@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -20,7 +21,6 @@ import (
 const (
 	signinTmplName  = "signin"
 	profileTmplName = "userinfo"
-	err401TmplName  = "401"
 	successURI      = "/userinfo"
 	rootURI         = "/"
 )
@@ -31,6 +31,12 @@ type HTMLHandlers struct {
 	cfg      *config.Config
 	ds       store.DataStore
 }
+
+var (
+	ErrUserNotFound       = errors.New("can't find user")
+	ErrMethodNotSupported = errors.New("method not supported")
+	ErrUserIDCast         = errors.New("can't cast user id to string type")
+)
 
 func NewHTMLHandlers(cfg *config.Config, ds store.DataStore,
 	trans ut.Translator, validate *validator.Validate) *HTMLHandlers {
@@ -107,10 +113,10 @@ func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 			}
 
 			// Redirect if successful
-			http.Redirect(ctx.Writer, ctx.Request, successURI, http.StatusFound)
+			ctx.Redirect(http.StatusMovedPermanently, successURI)
 		} else {
 			// Other methods
-			http.Error(ctx.Writer, fmt.Sprintf("%s not supported", ctx.Request.Method), http.StatusNotImplemented)
+			setErrorStatus(ctx, ErrMethodNotSupported, http.StatusMethodNotAllowed)
 			return
 		}
 	}
@@ -123,20 +129,24 @@ func (hh *HTMLHandlers) UserInfo() gin.HandlerFunc {
 		// GET  = displays the page.
 		// POST = handles the form submission.
 		if ctx.Request.Method == http.MethodGet {
-			uid, ok := ctx.Get(keyUserID)
+			val, ok := ctx.Get(keyUserID)
 			if !ok {
-				ctx.HTML(http.StatusOK, err401TmplName, nil)
+				setErrorStatus(ctx, ErrUserNotFound, http.StatusUnauthorized)
 				return
 			}
 
-			user, err := hh.ds.GetUser(ctx, uid.(string))
-			if err != nil {
-				_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			uid, ok := val.(string)
+			if !ok {
+				setErrorStatus(ctx, ErrUserIDCast, http.StatusInternalServerError)
 				return
 			}
 
-			if user == nil {
-				ctx.HTML(http.StatusOK, err401TmplName, nil)
+			user, err := hh.ds.GetUser(ctx, uid)
+			if err == store.ErrorNotFound {
+				setErrorStatus(ctx, ErrUserNotFound, http.StatusUnauthorized)
+				return
+			} else if err != nil {
+				setErrorStatus(ctx, err, http.StatusInternalServerError)
 				return
 			}
 
@@ -147,11 +157,12 @@ func (hh *HTMLHandlers) UserInfo() gin.HandlerFunc {
 			ctx.HTML(http.StatusOK, profileTmplName, content)
 		} else if ctx.Request.Method == http.MethodPost {
 			if err := ss.ClearSessionToken(ctx.Writer, ctx.Request); err != nil {
-				fmt.Printf("failed to clear session: %v", err)
+				setErrorStatus(ctx, err, http.StatusInternalServerError)
+				return
 			}
 
 			// Redirect if successful
-			http.Redirect(ctx.Writer, ctx.Request, rootURI, http.StatusFound)
+			ctx.Redirect(http.StatusMovedPermanently, rootURI)
 		}
 	}
 }
