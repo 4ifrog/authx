@@ -91,21 +91,29 @@ format:
 	@-echo "$(BOLD)$(BLUE)Formatting $(APP_NAME)...$(RESET)"
 	gofmt -e -s -w .
 
-##@ test: Run tests
+##@ test: Run tests - need to run the db independently.
 
 .PHONY: test
 
-test: start-db-container
+test:
 	@-echo "$(BOLD)$(CYAN)Running tests...$(RESET)"
 	CGO_ENABLED=0 go test $(TEST_SRC) -v -count=1 -coverprofile cover.out
 	go tool cover -func cover.out
+
+##@ e2e-container: Run e2e tests as containers within a network context (useful for CI)
+
+.PHONY: e2e-container
+
+e2e-container:
+	@-echo "$(BOLD)$(CYAN)Running e2e tests as docker containers...$(RESET)"
+	@docker-compose -f docker/docker-compose.e2e.yaml up --build --abort-on-container-exit
 
 ##@ test-container: Run tests and databases as containers within a netwwork context (useful for CI)
 
 .PHONY: test-container
 
-test-containers:
-	@-echo "$(BOLD)$(CYAN)Running tests and dependencies as docker containers...$(RESET)"
+test-container:
+	@-echo "$(BOLD)$(CYAN)Running tests as docker containers...$(RESET)"
 	@docker-compose -f docker/docker-compose.test.yaml up --build --abort-on-container-exit
 
 ##@ start-db-container: Start database containers if they aren't running in the background

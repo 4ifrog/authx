@@ -36,9 +36,16 @@ services:
       - 8080:8080
     depends_on:
       - mongo
+    volumes:
+      - ./shell-scripts/wait-for-it.sh:/go/bin/wait-for-it.sh
     environment:
       - AX_PORT=8080
       - AX_MONGO_ADDR=mongodb://nobody:secrets@mongo:27017/authx
+    command:
+      - ./wait-for-it.sh
+      - mongo:27017
+      - --
+      - ./authx
     networks:
       - default
   authx-e2e:

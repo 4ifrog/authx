@@ -38,7 +38,8 @@ RUN apk add --no-cache tini
 
 # Install system runtime dependencies
 RUN apk add --no-cache \
-    ca-certificates
+    ca-certificates \
+    bash
 
 # Copy binaries and config file over
 WORKDIR /go/bin
@@ -50,4 +51,4 @@ COPY --from=build /go/src/bin/templates ./templates
 
 # Execute
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["/go/bin/authx"]
+CMD ["./authx"]
