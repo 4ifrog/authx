@@ -37,6 +37,8 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '1.15.6'
+      # Run unit tests.
+      # NOTE: We can also run the unit tests as container by calling `make test-container`
       - name: 'Run unit tests'
         run: |
           ./scripts/start-db-container.sh | \

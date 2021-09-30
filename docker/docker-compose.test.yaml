@@ -1,6 +1,3 @@
-# For testing the application and its dependencies/databases as containers running within
-# a network context. It calls Dockerfile.test, which runs the integration tests.
-
 version: '3.7'
 
 networks:
@@ -9,6 +6,7 @@ networks:
     driver: bridge
 
 services:
+  # Mongo database.
   mongo:
     image: mongo:4.4.3-bionic
     hostname: mongo
@@ -28,15 +26,18 @@ services:
       - ./db-scripts/setup-ttl.js:/docker-entrypoint-initdb.d/setup-ttl.js
     networks:
       - default
-  authx:
+  # Run the unit tests.
+  authx-test:
     build:
       context: ..
       dockerfile: Dockerfile.test
     image: cybersamx/authx-test
-    hostname: authx
-    container_name: authx
+    hostname: authx-test
+    container_name: authx-test
     ports:
       - 5000:5000
+    stdin_open: true
+    tty: true
     depends_on:
       - mongo
     volumes:
