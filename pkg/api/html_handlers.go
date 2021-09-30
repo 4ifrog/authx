@@ -10,7 +10,6 @@ import (
 
 	"github.com/cybersamx/authx/pkg/auth"
 	"github.com/cybersamx/authx/pkg/config"
-	"github.com/cybersamx/authx/pkg/models"
 	"github.com/cybersamx/authx/pkg/store"
 
 	"github.com/gin-gonic/gin"
@@ -61,8 +60,8 @@ func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 		} else if ctx.Request.Method == http.MethodPost {
 			var msg strings.Builder
 
-			var login models.User
-			if err := ctx.ShouldBind(&login); err != nil {
+			var signin SignInUser
+			if err := ctx.ShouldBind(&signin); err != nil {
 				vErrs, ok := err.(validator.ValidationErrors)
 				if !ok {
 					log.Panicf("failed to cast validator.ValidationErrors: %v", err)
@@ -72,7 +71,7 @@ func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 					msg.WriteString(fmt.Sprintln(e.Translate(hh.trans)))
 				}
 			} else {
-				user, err := auth.Authenticate(ctx, hh.ds, login.Username, login.Password)
+				user, err := auth.Authenticate(ctx, hh.ds, signin.Username, signin.Password)
 				if err == auth.ErrUserNotFound {
 					msg.WriteString("User not found")
 				} else if err == auth.ErrInvalidCredentials {

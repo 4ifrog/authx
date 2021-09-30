@@ -9,7 +9,11 @@ FROM golang:1.15.6-alpine3.13 as build
 RUN apk add --no-cache \
     ca-certificates \
     git \
-    make
+    make \
+    ncurses
+
+# Support pretty print
+ENV TERM=xterm-256color
 
 # Set the build environments
 WORKDIR /go/src
@@ -23,9 +27,6 @@ RUN make install
 COPY . ./
 RUN mkdir -p bin
 RUN make build
-
-# Copy web files
-RUN make copy-files
 
 #####################
 # --- Final Stage ---

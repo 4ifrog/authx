@@ -12,6 +12,10 @@ TARGET_TEMPLATES := ./templates
 # Deployment
 IMAGE_NAME := cybersamx/$(APP_NAME)
 
+# Test containers
+TEST_DOCKER_COMPOSE := docker/docker-compose.test.yaml
+E2E_DOCKER_COMPOSE := docker/docker-compose.e2e.yaml
+
 # Colorized print
 BOLD := $(shell tput bold)
 RED := $(shell tput setaf 1)
@@ -39,7 +43,7 @@ run: copy-files start-db-container
 
 install:
 	@-echo "$(BOLD)$(BLUE)Installing dependencies...$(RESET)"
-	@cd $(APP_SRC); go mod download
+	@go mod download
 
 ##@ build: Build application
 
@@ -106,7 +110,12 @@ test:
 
 e2e-container:
 	@-echo "$(BOLD)$(CYAN)Running e2e tests as docker containers...$(RESET)"
-	@docker-compose -f docker/docker-compose.e2e.yaml up --build --abort-on-container-exit
+	@docker-compose -f $(E2E_DOCKER_COMPOSE) up \
+	--remove-orphans \
+	--abort-on-container-exit \
+	--exit-code-from authx-e2e
+	@docker-compose -f $(E2E_DOCKER_COMPOSE) down \
+	--volumes
 
 ##@ test-container: Run tests and databases as containers within a netwwork context (useful for CI)
 
@@ -114,23 +123,29 @@ e2e-container:
 
 test-container:
 	@-echo "$(BOLD)$(CYAN)Running tests as docker containers...$(RESET)"
-	@docker-compose -f docker/docker-compose.test.yaml up --build --abort-on-container-exit
+	@docker-compose -f $(TEST_DOCKER_COMPOSE) up \
+	--remove-orphans \
+	--abort-on-container-exit \
+	--exit-code-from authx-test
+	@docker-compose -f $(TEST_DOCKER_COMPOSE) down \
+	--volumes
 
 ##@ start-db-container: Start database containers if they aren't running in the background
 
 .PHONY: start-db-container
 
 start-db-container: scripts/start-db-container.sh
-		@-echo "$(BOLD)$(BLUE)Starting database container...$(RESET)"
-		$(PROJECT_ROOT)/scripts/start-db-container.sh
+	@-echo "$(BOLD)$(BLUE)Starting database container...$(RESET)"
+	$(PROJECT_ROOT)/scripts/start-db-container.sh
 
 ##@ end-db-container: End database containers if they are running in the background
 
 .PHONY: end-db-container
 
 end-db-container:
-		@-echo "$(BOLD)$(BLUE)Ending database container...$(RESET)"
-		@docker-compose -f docker/docker-compose.test.yaml down --volumes
+	@-echo "$(BOLD)$(BLUE)Ending database container...$(RESET)"
+	@docker-compose -f $(TEST_DOCKER_COMPOSE) down \
+	--volumes
 
 ##@ clean: Clean output files and build cache
 
