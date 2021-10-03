@@ -82,7 +82,7 @@ func (ah *AuthHandlers) SignOut() gin.HandlerFunc {
 			setErrorStatus(ctx, err, http.StatusInternalServerError)
 			return
 		}
-		if err := ah.ds.DeleteAccessToken(ctx, claims.ID); err != nil {
+		if err := ah.ds.RemoveAccessToken(ctx, claims.ID); err != nil {
 			setErrorStatus(ctx, err, http.StatusInternalServerError)
 			return
 		}

@@ -12,17 +12,20 @@ var (
 )
 
 type DataStore interface {
-	// General
 	Close()
+	// TODO: Remove this, it should be in the domain side of the app
+	SeedUserData() error
 
-	// Token
-	SaveAccessToken(parent context.Context, at *models.AccessToken) error
-	SaveRefreshToken(parent context.Context, rt *models.RefreshToken) error
-	DeleteAccessToken(parent context.Context, id string) error
-	DeleteRefreshToken(parent context.Context, id string) error
-
-	// User
 	GetUser(parent context.Context, id string) (*models.User, error)
 	GetUserByUsername(parent context.Context, username string) (*models.User, error)
-	SeedUserData() error
+	SaveUser(parent context.Context, user *models.User) error
+	RemoveUser(parent context.Context, id string) error
+
+	GetAccessToken(parent context.Context, id string) (*models.AccessToken, error)
+	SaveAccessToken(parent context.Context, at *models.AccessToken) error
+	RemoveAccessToken(parent context.Context, id string) error
+
+	GetRefreshToken(parent context.Context, id string) (*models.RefreshToken, error)
+	SaveRefreshToken(parent context.Context, rt *models.RefreshToken) error
+	RemoveRefreshToken(parent context.Context, id string) error
 }
