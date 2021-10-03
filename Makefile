@@ -62,11 +62,11 @@ copy-files:
 	@-echo "$(BOLD)$(BLUE)Copying config files, web assets, and templates...$(RESET)"
 	@-rm -rf $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
 	@-rm -rf $(PROJECT_BIN)/$(TARGET_TEMPLATES)
-	@mkdir -p $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
-	@mkdir -p $(PROJECT_BIN)/$(TARGET_TEMPLATES)
-	@cp -rf $(SRC_STATIC_WEB)/* $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
-	@cp -rf $(SRC_TEMPLATES)/* $(PROJECT_BIN)/$(TARGET_TEMPLATES)
-	@cp $(APP_SRC)/config.yaml $(PROJECT_BIN)
+	@-mkdir -p $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
+	@-mkdir -p $(PROJECT_BIN)/$(TARGET_TEMPLATES)
+	@-cp -rf $(SRC_STATIC_WEB)/* $(PROJECT_BIN)/$(TARGET_STATIC_WEB)
+	@-cp -rf $(SRC_TEMPLATES)/* $(PROJECT_BIN)/$(TARGET_TEMPLATES)
+	@-cp $(APP_SRC)/config.yaml $(PROJECT_BIN)
 
 ##@ docker-build: Build Docker image
 

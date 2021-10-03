@@ -14,16 +14,7 @@ $ git config core.hooksPath .githooks
 
 ### Database
 
-The auth service depends on Redis or Mongo for persistence.
-
-* To run Redis:
-
-  ```bash
-  $ docker-compose up redis
-  $ docker exec -it redis redis-cli
-  127.0.0.1:6379> SELECT 0  # Use database 0
-  127.0.0.1:6379> KEYS *    # Get all keys
-  ```
+The auth service depends on Mongo for persistence.
 
 * To run Mongo
 
@@ -60,7 +51,19 @@ The auth service depends on Redis or Mongo for persistence.
   $ make test
   ```
 
-* To run the linter.
+* We need to install the `golangci-lint` before running the linter. Here's the standard installation:
+
+  ```bash
+  $ curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.42.1
+  ```
+
+  If you are on the Mac and has Homebrew installed, run:
+
+  ```bash
+  $ brew install golangci-lint
+  ```
+
+  Once you have `golangci-lint` installed, just run this command.
 
   ```bash
   $ make lint
@@ -115,8 +118,9 @@ Here is [an in-depth description of OAuth2](docs).
    $ docker volume rm $(docker volume ls -qf dangling=true)
    ```
 
+# Credits
 
-
+* Gopher icon (used as favicon) by Renee French, CC BY 3.0 <https://creativecommons.org/licenses/by/3.0>, via Wikimedia Commons
 
 # Reference
 
