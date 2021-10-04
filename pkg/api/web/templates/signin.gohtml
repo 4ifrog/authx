@@ -29,7 +29,9 @@
           </label>
         </div>
         <div id="error-msg" class="small text-center">
-          {{.Error}}
+          {{range $msg := .ErrorMessages}}
+            <p>{{$msg}}</p>
+          {{end}}
         </div>
         <button id="btn-signin" type="submit" class="btn btn-primary btn-block mt-4" style="background-color: #1976d2;">SIGN IN</button>
         <div class="d-flex mt-3">

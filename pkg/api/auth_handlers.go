@@ -36,19 +36,25 @@ func NewAuthHandlers(cfg *config.Config, ds store.DataStore) *AuthHandlers {
 func (ah *AuthHandlers) SignIn() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// Bind inputs
-		var signin SignInUser
+		var signin SignInRequest
 		if err := ctx.ShouldBindJSON(&signin); err != nil {
 			setErrorStatus(ctx, ErrInvalidCredentials, http.StatusUnprocessableEntity)
 			return
 		}
 
-		// Authenticate
-		user, err := auth.Authenticate(ctx, ah.ds, signin.Username, signin.Password)
-		if err == auth.ErrUserNotFound || err == auth.ErrInvalidCredentials {
+		// Check if user exists
+		user, err := ah.ds.GetUserByUsername(ctx, signin.Username)
+		if user == nil || err == store.ErrorNotFound {
 			setErrorStatus(ctx, ErrUserNotFound, http.StatusUnauthorized)
 			return
 		} else if err != nil {
 			setErrorStatus(ctx, err, http.StatusInternalServerError)
+			return
+		}
+
+		// Authenticate
+		if ok := auth.Authenticate(user.Password, signin.Password, user.Salt); !ok {
+			setErrorStatus(ctx, ErrUserNotFound, http.StatusUnauthorized)
 			return
 		}
 
@@ -114,7 +120,7 @@ func (ah *AuthHandlers) UserInfo() gin.HandlerFunc {
 			return
 		}
 
-		ctx.JSON(http.StatusOK, user2UserInfo(user))
+		ctx.JSON(http.StatusOK, user2UserInfoResponse(user))
 	}
 }
 
