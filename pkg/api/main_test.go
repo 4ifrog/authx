@@ -5,25 +5,18 @@ import (
 	"os"
 	"testing"
 
-	"github.com/spf13/viper"
-
 	"github.com/cybersamx/authx/pkg/app"
 	"github.com/cybersamx/authx/pkg/config"
 	"github.com/cybersamx/authx/pkg/server"
 	"github.com/cybersamx/authx/pkg/store/mongo"
+	"github.com/spf13/viper"
 )
 
 var testapp *app.App
 
 func TestMain(m *testing.M) {
-	bootstrap()
-	code := m.Run()
-	teardown()
-	os.Exit(code)
-}
-
-func bootstrap() {
-	fmt.Println("Bootstrap...")
+	fmt.Println("Main app staring up...")
+	var code int
 
 	// Config
 	v := viper.GetViper()
@@ -34,7 +27,13 @@ func bootstrap() {
 
 	// Mongo
 	ds := mongo.New(cfg)
-	if err := ds.SeedUserData(); err != nil {
+	defer func() {
+		fmt.Println("Main app tearing down...")
+		ds.Close()
+		os.Exit(code)
+	}()
+
+	if err := SeedUserData(ds); err != nil {
 		panic(err)
 	}
 
@@ -44,10 +43,6 @@ func bootstrap() {
 
 	// Put everything in an app and run it.
 	testapp = app.New(srv, ds, cfg)
-}
 
-func teardown() {
-	fmt.Println("Teardown...")
-
-	testapp.Store.Close()
+	code = m.Run()
 }

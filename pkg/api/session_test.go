@@ -17,12 +17,12 @@ const (
 )
 
 var (
-	tokenExpiry = time.Now().AddDate(10, 0, 0)
-	otoken      = oauth2.Token{
+	longExpiry = time.Now().AddDate(10, 0, 0)
+	otoken     = oauth2.Token{
 		AccessToken:  "access-token",
 		TokenType:    "Bearer",
 		RefreshToken: "refresh-token",
-		Expiry:       tokenExpiry,
+		Expiry:       longExpiry,
 	}
 	us = SessionToken{
 		Token:  otoken,

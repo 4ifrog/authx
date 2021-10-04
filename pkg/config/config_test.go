@@ -57,7 +57,7 @@ func writeYAML(t *testing.T) {
 	content := `
 port: 5000
 debug: true
-redis-addr: redis.net:35380
+mongo-addr: mongo.net:35380
 `
 
 	filename := "config.yaml"
@@ -77,14 +77,14 @@ func Test_DefaultValues(t *testing.T) {
 	// environment variables takes precedence over defaults.
 	port := Getenv(t, "AX_PORT")
 	debug := Getenv(t, "AX_DEBUG")
-	redisPort := Getenv(t, "AX_REDIS_ADDR")
+	mongoAddr := Getenv(t, "AX_MONGO_ADDR")
 	Unsetenv(t, "AX_PORT")
 	Unsetenv(t, "AX_DEBUG")
-	Unsetenv(t, "AX_REDIS_ADDR")
+	Unsetenv(t, "AX_MONGO_ADDR")
 	defer func() {
 		Setenv(t, "AX_PORT", port)
 		Setenv(t, "AX_DEBUG", debug)
-		Setenv(t, "AX_REDIS_ADDR", redisPort)
+		Setenv(t, "AX_MONGO_ADDR", mongoAddr)
 	}()
 
 	viper.Reset()
@@ -101,7 +101,7 @@ func Test_DefaultValues(t *testing.T) {
 
 	assert.Equal(t, 8080, cfg.Port)
 	assert.Equal(t, false, cfg.Debug)
-	assert.Equal(t, "localhost:6379", cfg.RedisAddr)
+	assert.Equal(t, "mongodb://nobody:secrets@localhost:27017/authx", cfg.MongoAddr)
 }
 
 func Test_LoadFromConfigFile(t *testing.T) {
@@ -124,7 +124,7 @@ func Test_LoadFromConfigFile(t *testing.T) {
 
 	assert.Equal(t, 5000, cfg.Port)
 	assert.Equal(t, true, cfg.Debug)
-	assert.Equal(t, "redis.net:35380", cfg.RedisAddr)
+	assert.Equal(t, "mongo.net:35380", cfg.MongoAddr)
 }
 
 func Test_LoadFromEnvVariables(t *testing.T) {
@@ -135,11 +135,11 @@ func Test_LoadFromEnvVariables(t *testing.T) {
 
 	Setenv(t, "AX_PORT", "6000")
 	Setenv(t, "AX_DEBUG", "true")
-	Setenv(t, "AX_REDIS_ADDR", "10.20.30.40")
+	Setenv(t, "AX_MONGO_ADDR", "10.20.30.40")
 	defer func() {
 		Unsetenv(t, "AX_PORT")
 		Unsetenv(t, "AX_DEBUG")
-		Unsetenv(t, "AX_REDIS_ADDR")
+		Unsetenv(t, "AX_MONGO_ADDR")
 	}()
 
 	opts := BindConfigOpts{
@@ -151,7 +151,7 @@ func Test_LoadFromEnvVariables(t *testing.T) {
 
 	assert.Equal(t, 6000, cfg.Port)
 	assert.Equal(t, true, cfg.Debug)
-	assert.Equal(t, "10.20.30.40", cfg.RedisAddr)
+	assert.Equal(t, "10.20.30.40", cfg.MongoAddr)
 }
 
 func Test_LoadFromFlags(t *testing.T) {
@@ -165,7 +165,7 @@ func Test_LoadFromFlags(t *testing.T) {
 		Args: []string{
 			"--debug", "true",
 			"--port", "7000",
-			"--redis-addr", "redis.example.com:30000",
+			"--mongo-addr", "mongo.example.com:30000",
 		},
 	}
 	cfg.BindConfig(v, opts)
@@ -173,7 +173,7 @@ func Test_LoadFromFlags(t *testing.T) {
 
 	assert.Equal(t, 7000, cfg.Port)
 	assert.Equal(t, true, cfg.Debug)
-	assert.Equal(t, "redis.example.com:30000", cfg.RedisAddr)
+	assert.Equal(t, "mongo.example.com:30000", cfg.MongoAddr)
 }
 
 func Test_Overrides(t *testing.T) {
@@ -185,10 +185,10 @@ func Test_Overrides(t *testing.T) {
 	// Need to unset os environment variables so that we can test defaults properly as
 	// environment variables takes precedence over defaults.
 	port := Getenv(t, "AX_PORT")
-	redisPort := Getenv(t, "AX_REDIS_ADDR")
+	mongoAddr := Getenv(t, "AX_MONGO_ADDR")
 	defer func() {
 		Setenv(t, "AX_PORT", port)
-		Setenv(t, "AX_REDIS_ADDR", redisPort)
+		Setenv(t, "AX_MONGO_ADDR", mongoAddr)
 	}()
 
 	writeYAML(t)
@@ -204,7 +204,7 @@ func Test_Overrides(t *testing.T) {
 	opts := BindConfigOpts{
 		FlagSet: getTestFlagSet(),
 		Args: []string{
-			"--redis-addr", "redis.example.com:30000",
+			"--mongo-addr", "mongo.example.com:30000",
 		},
 	}
 	cfg.BindConfig(v, opts)
@@ -212,5 +212,5 @@ func Test_Overrides(t *testing.T) {
 
 	assert.Equal(t, 5000, cfg.Port)
 	assert.Equal(t, false, cfg.Debug)
-	assert.Equal(t, "redis.example.com:30000", cfg.RedisAddr)
+	assert.Equal(t, "mongo.example.com:30000", cfg.MongoAddr)
 }

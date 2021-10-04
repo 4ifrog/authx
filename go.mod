@@ -5,7 +5,6 @@ go 1.15
 require (
 	github.com/flowchartsman/retry v1.2.0
 	github.com/gavv/httpexpect/v2 v2.1.0
-	github.com/gin-contrib/multitemplate v0.0.0-20210428235909-8a2f6dd269a0
 	github.com/gin-contrib/static v0.0.0-20200916080430-d45d9a37d28e
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-playground/locales v0.13.0

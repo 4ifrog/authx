@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/cybersamx/authx/pkg/auth"
 	"github.com/cybersamx/authx/pkg/config"
-	"github.com/cybersamx/authx/pkg/models"
 	"github.com/cybersamx/authx/pkg/store"
 
 	"github.com/gin-gonic/gin"
@@ -50,7 +48,80 @@ func NewHTMLHandlers(cfg *config.Config, ds store.DataStore,
 	return handlers
 }
 
-// TODO: Refactor too many if-else statements.
+func handleValidationError(err error, trans ut.Translator) []string {
+	var msgs []string
+
+	vErrs, ok := err.(validator.ValidationErrors)
+	if !ok {
+		log.Panicf("failed to cast validator.ValidationErrors: %v", err)
+		return msgs
+	}
+
+	for _, e := range vErrs {
+		msgs = append(msgs, e.Translate(trans))
+	}
+
+	return msgs
+}
+
+func handleErrorMessages(ctx *gin.Context, tmplName string, msgs []string) {
+	if len(msgs) > 0 {
+		content := gin.H{
+			"ErrorMessages": msgs,
+		}
+
+		ctx.HTML(http.StatusOK, tmplName, content)
+		return
+	}
+
+	// Redirect if successful
+	ctx.Redirect(http.StatusMovedPermanently, successURI)
+}
+
+func (hh *HTMLHandlers) postSignIn(ctx *gin.Context) []string {
+	var msgs []string
+
+	var signin SignInRequest
+	if err := ctx.ShouldBind(&signin); err != nil {
+		return handleValidationError(err, hh.trans)
+	}
+
+	// Check if user exists
+	user, err := hh.ds.GetUserByUsername(ctx, signin.Username)
+	if user == nil || err == store.ErrorNotFound {
+		return append(msgs, "User not found")
+	} else if err != nil {
+		return append(msgs, fmt.Sprintf("Internal error: %s", err))
+	}
+
+	// Authenticate
+	if ok := auth.Authenticate(user.Password, signin.Password, user.Salt); !ok {
+		return append(msgs, "Invalid credentials")
+	}
+
+	// Strip sensitive data like password.
+	user.RemoveSensitiveData()
+
+	// Generate oauth2 object and save.
+	aTTL := time.Duration(hh.cfg.AccessTTL) * time.Second
+	rTTL := time.Duration(hh.cfg.RefreshTTL) * time.Second
+	otoken, err := auth.CreateOAuthToken(ctx, hh.ds, user.ID, hh.cfg.AccessSecret, aTTL, rTTL)
+	if err != nil {
+		return append(msgs, fmt.Sprintf("Internal error: %s", err))
+	}
+
+	// Save token to the cookie.
+	token := SessionToken{
+		Token:  *otoken,
+		UserID: user.ID,
+	}
+	ss := NewCookieStore(hh.cfg.SessionSecret)
+	if err := ss.SetSessionToken(ctx.Writer, ctx.Request, &token); err != nil {
+		return append(msgs, fmt.Sprintf("Internal error: %s", err))
+	}
+
+	return msgs
+}
 
 func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -58,67 +129,15 @@ func (hh *HTMLHandlers) SignIn() gin.HandlerFunc {
 		// POST = handles the form submission.
 		if ctx.Request.Method == http.MethodGet {
 			ctx.HTML(http.StatusOK, signinTmplName, nil)
+			return
 		} else if ctx.Request.Method == http.MethodPost {
-			var msg strings.Builder
+			msgs := hh.postSignIn(ctx)
 
-			var login models.User
-			if err := ctx.ShouldBind(&login); err != nil {
-				vErrs, ok := err.(validator.ValidationErrors)
-				if !ok {
-					log.Panicf("failed to cast validator.ValidationErrors: %v", err)
-				}
-
-				for _, e := range vErrs {
-					msg.WriteString(fmt.Sprintln(e.Translate(hh.trans)))
-				}
-			} else {
-				user, err := auth.Authenticate(ctx, hh.ds, login.Username, login.Password)
-				if err == auth.ErrUserNotFound {
-					msg.WriteString("User not found")
-				} else if err == auth.ErrInvalidCredentials {
-					msg.WriteString("Invalid credentials")
-				} else if err != nil {
-					msg.WriteString(fmt.Sprintf("Internal error: %s", err))
-				}
-
-				// Generate oauth2 object and save.
-				if msg.Len() == 0 {
-					aTTL := time.Duration(hh.cfg.AccessTTL) * time.Second
-					rTTL := time.Duration(hh.cfg.RefreshTTL) * time.Second
-					otoken, err := auth.CreateOAuthToken(ctx, hh.ds, user.ID, hh.cfg.AccessSecret, aTTL, rTTL)
-					if err != nil {
-						msg.WriteString(fmt.Sprintf("Internal error: %s", err))
-					} else {
-						// Save token to the cookie.
-						token := SessionToken{
-							Token:  *otoken,
-							UserID: user.ID,
-						}
-						ss := NewCookieStore(hh.cfg.SessionSecret)
-						if err := ss.SetSessionToken(ctx.Writer, ctx.Request, &token); err != nil {
-							msg.WriteString(fmt.Sprintf("Internal error: %s", err))
-						}
-					}
-				}
-			}
-
-			if msg.Len() > 0 {
-				content := gin.H{
-					"Error": msg.String(),
-				}
-
-				ctx.HTML(http.StatusOK, signinTmplName, content)
-
-				return
-			}
-
-			// Redirect if successful
-			ctx.Redirect(http.StatusMovedPermanently, successURI)
-		} else {
-			// Other methods
-			setErrorStatus(ctx, ErrMethodNotSupported, http.StatusMethodNotAllowed)
+			handleErrorMessages(ctx, signinTmplName, msgs)
 			return
 		}
+
+		setErrorStatus(ctx, ErrMethodNotSupported, http.StatusMethodNotAllowed)
 	}
 }
 

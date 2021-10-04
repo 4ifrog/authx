@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/cybersamx/authx/pkg/store"
 	"github.com/flowchartsman/retry"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,14 +13,12 @@ import (
 	"go.mongodb.org/mongo-driver/x/mongo/driver/topology"
 
 	"github.com/cybersamx/authx/pkg/config"
-	"github.com/cybersamx/authx/pkg/crypto"
 	"github.com/cybersamx/authx/pkg/models"
-	"github.com/cybersamx/authx/pkg/utils"
+	"github.com/cybersamx/authx/pkg/store"
 )
 
 const (
 	atomicTimeout  = 15 * time.Second
-	pwdSaltLen     = 24
 	atCollection   = "access_tokens"
 	rtCollection   = "refresh_tokens"
 	userCollection = "users"
@@ -32,17 +29,6 @@ const (
 	initialDelay = 1 * time.Second
 	maxDelay     = 6 * time.Second
 )
-
-var seedUsers = []struct {
-	id       string
-	username string
-	clearPwd string
-}{
-	{"0", "admin", "secret"},
-	{"1", "chan", "mypassword"},
-	{"2", "john", "12345678"},
-	{"3", "patel", "patel_rules"},
-}
 
 // setupMongo configure the mongo store with indexes, collections, etc.
 func setupMongo(parent context.Context, db *mongo.Database) error {
@@ -61,9 +47,9 @@ func setupMongo(parent context.Context, db *mongo.Database) error {
 	return nil
 }
 
-// --- StoreMongo ---
+// --- Store ---
 
-type StoreMongo struct {
+type Store struct {
 	client *mongo.Client
 	db     *mongo.Database
 }
@@ -124,7 +110,7 @@ func newClient(parent context.Context, dsn string, retries int, initialDelay, ma
 	return client, err
 }
 
-func New(cfg *config.Config) *StoreMongo {
+func New(cfg *config.Config) *Store {
 	dsn := cfg.MongoAddr
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -144,120 +130,115 @@ func New(cfg *config.Config) *StoreMongo {
 		panic(err)
 	}
 
-	return &StoreMongo{
+	return &Store{
 		client: client,
 		db:     db,
 	}
 }
 
-// --- Implements store.Storage ---
-
-func (sm *StoreMongo) Close() {
+func (s *Store) Close() {
 	ctx, cancel := context.WithTimeout(context.Background(), atomicTimeout)
 	defer cancel()
-	if err := sm.client.Disconnect(ctx); err != nil {
+	if err := s.client.Disconnect(ctx); err != nil {
 		panic(err)
 	}
 }
 
-func (sm *StoreMongo) SaveAccessToken(parent context.Context, at *models.AccessToken) error {
+func (s *Store) getAndBindObject(parent context.Context, collection, key, val string, obj interface{}) error {
 	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
 	defer cancel()
 
-	_, err := sm.db.Collection(atCollection).InsertOne(ctx, at)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (sm *StoreMongo) SaveRefreshToken(parent context.Context, rt *models.RefreshToken) error {
-	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
-	defer cancel()
-
-	_, err := sm.db.Collection(rtCollection).InsertOne(ctx, rt)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (sm *StoreMongo) DeleteAccessToken(parent context.Context, id string) error {
-	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
-	defer cancel()
-
-	_, err := sm.db.Collection(atCollection).DeleteOne(ctx, bson.D{
-		{Key: "_id", Value: id},
-	})
-
-	return err
-}
-
-func (sm *StoreMongo) DeleteRefreshToken(parent context.Context, id string) error {
-	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
-	defer cancel()
-
-	_, err := sm.db.Collection(rtCollection).DeleteOne(ctx, bson.D{
-		{Key: "_id", Value: id},
-	})
-
-	return err
-}
-
-func (sm *StoreMongo) getUser(parent context.Context, key, val string) (*models.User, error) {
-	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
-	defer cancel()
-
-	var user models.User
-	err := sm.db.Collection(userCollection).FindOne(ctx, bson.D{
+	err := s.db.Collection(collection).FindOne(ctx, bson.D{
 		{Key: key, Value: val},
-	}).Decode(&user)
+	}).Decode(obj)
 	if err == mongo.ErrNoDocuments {
-		return nil, store.ErrorNotFound
+		return store.ErrorNotFound
 	} else if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Store) saveObject(parent context.Context, collection string, obj interface{}) error {
+	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
+	defer cancel()
+
+	_, err := s.db.Collection(collection).InsertOne(ctx, obj)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Store) removeObject(parent context.Context, collection, id string) error {
+	ctx, cancel := context.WithTimeout(parent, atomicTimeout)
+	defer cancel()
+
+	_, err := s.db.Collection(collection).DeleteOne(ctx, bson.D{
+		{Key: "_id", Value: id},
+	})
+
+	return err
+}
+
+func (s *Store) GetUser(parent context.Context, id string) (*models.User, error) {
+	var user models.User
+	if err := s.getAndBindObject(parent, userCollection, "_id", id, &user); err != nil {
 		return nil, err
 	}
 
 	return &user, nil
 }
 
-func (sm *StoreMongo) SeedUserData() error {
-	ctx, cancel := context.WithTimeout(context.Background(), atomicTimeout)
-	defer cancel()
-
-	if err := sm.db.Collection(userCollection).Drop(ctx); err != nil {
-		panic(err)
+func (s *Store) GetUserByUsername(parent context.Context, username string) (*models.User, error) {
+	var user models.User
+	if err := s.getAndBindObject(parent, userCollection, "username", username, &user); err != nil {
+		return nil, err
 	}
 
-	for _, seedUser := range seedUsers {
-		// Generate a user.
-		salt, err := utils.GetRandSecret(pwdSaltLen)
-		if err != nil {
-			panic(err)
-		}
-		password := crypto.HashString(seedUser.clearPwd, salt)
-		user := models.User{
-			ID:       seedUser.id,
-			Username: seedUser.username,
-			Password: password,
-			Salt:     salt,
-		}
+	return &user, nil
+}
 
-		_, err = sm.db.Collection(userCollection).InsertOne(ctx, user)
-		if err != nil {
-			return err
-		}
+func (s *Store) SaveUser(parent context.Context, user *models.User) error {
+	return s.saveObject(parent, userCollection, user)
+}
+
+func (s *Store) RemoveUser(parent context.Context, id string) error {
+	return s.removeObject(parent, userCollection, id)
+}
+
+func (s *Store) GetAccessToken(parent context.Context, id string) (*models.AccessToken, error) {
+	var at models.AccessToken
+	if err := s.getAndBindObject(parent, atCollection, "_id", id, &at); err != nil {
+		return nil, err
 	}
 
-	return nil
+	return &at, nil
 }
 
-func (sm *StoreMongo) GetUser(parent context.Context, id string) (*models.User, error) {
-	return sm.getUser(parent, "_id", id)
+func (s *Store) SaveAccessToken(parent context.Context, at *models.AccessToken) error {
+	return s.saveObject(parent, atCollection, at)
 }
 
-func (sm *StoreMongo) GetUserByUsername(parent context.Context, username string) (*models.User, error) {
-	return sm.getUser(parent, "username", username)
+func (s *Store) RemoveAccessToken(parent context.Context, id string) error {
+	return s.removeObject(parent, atCollection, id)
+}
+
+func (s *Store) GetRefreshToken(parent context.Context, id string) (*models.RefreshToken, error) {
+	var rt models.RefreshToken
+	if err := s.getAndBindObject(parent, rtCollection, "_id", id, &rt); err != nil {
+		return nil, err
+	}
+
+	return &rt, nil
+}
+
+func (s *Store) SaveRefreshToken(parent context.Context, rt *models.RefreshToken) error {
+	return s.saveObject(parent, rtCollection, rt)
+}
+
+func (s *Store) RemoveRefreshToken(parent context.Context, id string) error {
+	return s.removeObject(parent, rtCollection, id)
 }

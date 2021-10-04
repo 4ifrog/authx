@@ -14,16 +14,7 @@ $ git config core.hooksPath .githooks
 
 ### Database
 
-The auth service depends on Redis or Mongo for persistence.
-
-* To run Redis:
-
-  ```bash
-  $ docker-compose up redis
-  $ docker exec -it redis redis-cli
-  127.0.0.1:6379> SELECT 0  # Use database 0
-  127.0.0.1:6379> KEYS *    # Get all keys
-  ```
+The auth service depends on Mongo for persistence.
 
 * To run Mongo
 
@@ -60,7 +51,19 @@ The auth service depends on Redis or Mongo for persistence.
   $ make test
   ```
 
-* To run the linter.
+* We need to install the `golangci-lint` before running the linter. Here's the standard installation:
+
+  ```bash
+  $ curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.42.1
+  ```
+
+  If you are on the Mac and has Homebrew installed, run:
+
+  ```bash
+  $ brew install golangci-lint
+  ```
+
+  Once you have `golangci-lint` installed, just run this command.
 
   ```bash
   $ make lint
@@ -101,9 +104,27 @@ Since we are including the database (running in containers) in both our unit and
 * `make test` - Run unit tests.
 * `make end-db-container` - Tear down the database container.
 
-## OAuth2
+## Principles
+
+### OAuth2
 
 Here is [an in-depth description of OAuth2](docs).
+
+### Architecture
+
+#### Separation of Concerns
+
+We separate the application concerns into: implementation, application, and domain. Implementation means the layer covering the low-level details of operations that are independent the domain logic of the application. Logic is the domain logic is where the business rules are set. Then we have a middle tier called application that imports the logic, and maps the different business rules.
+
+|          | Implementation | Application | Domain |
+|----------|----------------|-------------|--------|
+| Examples | Configuration engine<br />Database engine<br />Storage<br/>Messaging<br /> | State management<br />Configuration values<br /> |  Validation<br />Show fields based on user's role<br />Calculate expiration<br /> |
+
+This can result in more boilerplate code. But doing it this way makes the code more well-understood and more importantly allows us to modify the code with minimal side effects. This follows the [clean architecture](https://threedots.tech/post/introducing-clean-architecture/) pattern.
+
+#### One model, one responsibility
+
+Instead of using one data model for everything, this project breaks the data model into database-specific models that represents the data schema and api-specific models that are used in the API. This is similar in keeping the domain separate from the low-level implementation, allowing the application to be more decoupled.
 
 ## Troubleshooting
 
@@ -115,8 +136,9 @@ Here is [an in-depth description of OAuth2](docs).
    $ docker volume rm $(docker volume ls -qf dangling=true)
    ```
 
+# Credits
 
-
+* Gopher icon (used as favicon) by Renee French, CC BY 3.0 <https://creativecommons.org/licenses/by/3.0>, via Wikimedia Commons
 
 # Reference
 
