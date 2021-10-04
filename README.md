@@ -104,9 +104,27 @@ Since we are including the database (running in containers) in both our unit and
 * `make test` - Run unit tests.
 * `make end-db-container` - Tear down the database container.
 
-## OAuth2
+## Principles
+
+### OAuth2
 
 Here is [an in-depth description of OAuth2](docs).
+
+### Architecture
+
+#### Separation of Concerns
+
+We separate the application concerns into: implementation, application, and domain. Implementation means the layer covering the low-level details of operations that are independent the domain logic of the application. Logic is the domain logic is where the business rules are set. Then we have a middle tier called application that imports the logic, and maps the different business rules.
+
+|          | Implementation | Application | Domain |
+|----------|----------------|-------------|--------|
+| Examples | Configuration engine<br />Database engine<br />Storage<br/>Messaging<br /> | State management<br />Configuration values<br /> |  Validation<br />Show fields based on user's role<br />Calculate expiration<br /> |
+
+This can result in more boilerplate code. But doing it this way makes the code more well-understood and more importantly allows us to modify the code with minimal side effects. This follows the [clean architecture](https://threedots.tech/post/introducing-clean-architecture/) pattern.
+
+#### One model, one responsibility
+
+Instead of using one data model for everything, this project breaks the data model into database-specific models that represents the data schema and api-specific models that are used in the API. This is similar in keeping the domain separate from the low-level implementation, allowing the application to be more decoupled.
 
 ## Troubleshooting
 
