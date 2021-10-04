@@ -13,15 +13,12 @@ import (
 	"go.mongodb.org/mongo-driver/x/mongo/driver/topology"
 
 	"github.com/cybersamx/authx/pkg/config"
-	"github.com/cybersamx/authx/pkg/crypto"
 	"github.com/cybersamx/authx/pkg/models"
 	"github.com/cybersamx/authx/pkg/store"
-	"github.com/cybersamx/authx/pkg/utils"
 )
 
 const (
 	atomicTimeout  = 15 * time.Second
-	pwdSaltLen     = 24
 	atCollection   = "access_tokens"
 	rtCollection   = "refresh_tokens"
 	userCollection = "users"
@@ -32,17 +29,6 @@ const (
 	initialDelay = 1 * time.Second
 	maxDelay     = 6 * time.Second
 )
-
-var seedUsers = []struct {
-	id       string
-	username string
-	clearPwd string
-}{
-	{"0", "admin", "secret"},
-	{"1", "chan", "mypassword"},
-	{"2", "john", "12345678"},
-	{"3", "patel", "patel_rules"},
-}
 
 // setupMongo configure the mongo store with indexes, collections, etc.
 func setupMongo(parent context.Context, db *mongo.Database) error {
@@ -156,37 +142,6 @@ func (s *Store) Close() {
 	if err := s.client.Disconnect(ctx); err != nil {
 		panic(err)
 	}
-}
-
-func (s *Store) SeedUserData() error {
-	ctx, cancel := context.WithTimeout(context.Background(), atomicTimeout)
-	defer cancel()
-
-	if err := s.db.Collection(userCollection).Drop(ctx); err != nil {
-		panic(err)
-	}
-
-	for _, seedUser := range seedUsers {
-		// Generate a user.
-		salt, err := utils.GetRandSecret(pwdSaltLen)
-		if err != nil {
-			panic(err)
-		}
-		password := crypto.HashString(seedUser.clearPwd, salt)
-		user := models.User{
-			ID:       seedUser.id,
-			Username: seedUser.username,
-			Password: password,
-			Salt:     salt,
-		}
-
-		_, err = s.db.Collection(userCollection).InsertOne(ctx, user)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (s *Store) getAndBindObject(parent context.Context, collection, key, val string, obj interface{}) error {

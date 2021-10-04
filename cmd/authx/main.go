@@ -20,7 +20,7 @@ func main() {
 	// Mongo
 	ds := mongo.New(cfg)
 	defer ds.Close()
-	if err := ds.SeedUserData(); err != nil {
+	if err := api.SeedUserData(ds); err != nil {
 		panic(err)
 	}
 

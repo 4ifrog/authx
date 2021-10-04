@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 		os.Exit(code)
 	}()
 
-	if err := ds.SeedUserData(); err != nil {
+	if err := SeedUserData(ds); err != nil {
 		panic(err)
 	}
 

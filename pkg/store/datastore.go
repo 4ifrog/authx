@@ -13,8 +13,6 @@ var (
 
 type DataStore interface {
 	Close()
-	// TODO: Remove this, it should be in the domain side of the app
-	SeedUserData() error
 
 	GetUser(parent context.Context, id string) (*models.User, error)
 	GetUserByUsername(parent context.Context, username string) (*models.User, error)
